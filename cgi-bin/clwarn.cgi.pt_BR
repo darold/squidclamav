@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+use strict;
+
+use CGI;
+
+my $VERSION = '6.5';
+
+my $cgi = new CGI;
+
+my $url = $cgi->param('url') || '';
+my $virus = $cgi->param('virus') || '';
+
+my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um v&iacute;rus!";
+my $subtitle = 'est&aacute; infectada pelo v&iacute;rus';
+if ($virus =~ /Safebrowsing/) {
+	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
+	$subtitle = 'Safe Browsing message';
+}
+
+print $cgi->header();
+
+print $cgi->start_html(-title => $TITLE_VIRUS);
+print qq{
+<h2 style="color: #FF0000">$TITLE_VIRUS</h2>
+<hr>
+<p>
+};
+print qq{
+A URL requisitada $url <br>
+$subtitle: $virus
+};
+
+print qq{
+<p>
+Esta URL n&atilde;o pode ser baixada por conter v&iacute;rus.
+<p>
+Origem: $source / $user
+<hr>
+Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.
+};
+
+print $cgi->end_html();
+
+exit 0;

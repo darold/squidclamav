@@ -1,0 +1,117 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_INIT([SquidClamav], [6.5], [http://squidclamav.darold.net/], [squidclamav])
+AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_SRCDIR([src/squidclamav.c])
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(squidclamav, 6.5)
+AC_CONFIG_FILES([Makefile])
+AC_PREFIX_DEFAULT(/usr/local)
+
+# Checks for programs.
+AC_PROG_CC
+AM_PROG_CC_C_O
+AC_DISABLE_STATIC
+AC_LIBTOOL_DLOPEN
+AC_LIBTOOL_WIN32_DLL
+AC_PROG_LIBTOOL
+AC_SUBST(LIBTOOL_DEPS)
+AC_LANG_C
+AC_PROG_CXX
+AC_CANONICAL_HOST
+AC_DISABLE_SHARED
+AC_PROG_LIBTOOL
+AC_LTDL_DLLIB
+AC_PROG_RANLIB
+
+CFLAGS="$CFLAGS -Wall"
+
+#check for c-icap
+AC_ARG_WITH(c-icap,
+[  --with-c-icap        Where to find c-icap ],
+[
+    cicapdir="$withval"
+    if test -f $withval/bin/c-icap-config; then
+       cicapflags=`$withval/bin/c-icap-config --cflags`
+       cicaplibs=`$withval/bin/c-icap-config --libs`
+       cicapetc=`$withval/bin/c-icap-config --configdir`
+       cicapprefix=`$withval/bin/c-icap-config --prefix`
+       cicapmods=`$withval/bin/c-icap-config --modulesdir`
+    else
+       cicapflags=`c-icap-config --cflags`
+       cicaplibs=`c-icap-config --libs`
+       cicapetc=`c-icap-config --configdir`
+       cicapprefix=`c-icap-config --prefix`
+       cicapmods=`c-icap-config --modulesdir`
+    fi
+],
+)
+
+if test -z "$cicapdir"; then
+    if c-icap-config >& /dev/null; then
+        cicapflags=`c-icap-config --cflags`
+        cicaplibs=`c-icap-config --libs`
+        cicapetc=`c-icap-config --configdir`
+        cicapprefix=`c-icap-config --prefix`
+        cicapmods=`c-icap-config --modulesdir`
+    else
+        echo "ERROR: c-icap-config not found!"
+        exit -1;
+    fi
+fi
+
+AM_CONDITIONAL(CICAPMODULESDIR, [test -n $cicapmods])
+
+CFLAGS="$CFLAGS $cicapflags"
+MODULES_LIBADD="$cicaplibs"
+CONFDIR="$cicapetc"
+MODSDIR="$cicapmods"
+AC_SUBST(MODULES_LIBADD)
+AC_SUBST(CONFDIR)
+AC_SUBST(MODSDIR)
+
+AC_SUBST([AM_CFLAGS], [-I/usr/local/include])
+AC_SUBST([AM_LDFLAGS], [-L/usr/local/lib])
+
+# Checks for header files.
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h regex.h signal.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+
+# Checks for library functions.
+AC_FUNC_FORK
+AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([dup2 gettimeofday memchr memset regcomp regexec regfree socket strdup strerror strspn strstr])
+
+dnl Fix compilation error on OpenSolaris
+case "$host" in
+	*-linux-*)
+		ADDITONAL_LIB=''
+	    ;;
+	*-solaris*)
+		ADDITONAL_LIB='-lnsl -lsocket'
+	    ;;
+	*-openbsd*)
+		ADDITONAL_LIB='-lcompat'
+	    ;;
+	*-freebsd*)
+		ADDITONAL_LIB=''
+	    ;;
+esac
+AC_SUBST([ADDITONAL_LIB])
+
+
+dnl Force config directory to be /etc/
+CFGDIR=/etc
+AC_SUBST([CFGDIR])
+
+AC_OUTPUT([
+src/Makefile
+etc/Makefile
+])
+

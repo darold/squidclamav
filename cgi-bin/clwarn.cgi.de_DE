@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+use strict;
+
+use CGI;
+
+my $VERSION = '6.5';
+
+my $cgi = new CGI;
+
+my $url = $cgi->param('url') || '';
+my $virus = $cgi->param('virus') || '';
+my $source = $cgi->param('source') || '';
+$source =~ s/\/-//;
+my $user = $cgi->param('user') || '';
+
+my $TITLE_VIRUS = "Virus Alarm";
+my $subtitle = 'enthält folgenden Virus';
+if ($virus =~ /Safebrowsing/) {
+	$TITLE_VIRUS = "Unsafe Browsing Alarm";
+	$subtitle = 'Safe Browsing message';
+}
+
+# Remove clamd infos
+$virus =~ s/stream: //;
+$virus =~ s/ FOUND//;
+
+print $cgi->header();
+
+print $cgi->start_html(-title => $TITLE_VIRUS);
+print qq{
+<h1 style="color: #FF0000" align=\"center\">$TITLE_VIRUS</h1>
+<hr>
+};
+	print qq{
+<p align=\"center\">Die angegebene URL</p>
+<h3 align=\"center\" style="color: #0000FF">$url</h3>
+<p align=\"center\">$subtitle:</p> 
+<h2 align=\"center\" style="color: #0000FF">$virus</h2>
+};
+print qq{
+<p align="center">Der Zugriff wurde verweigert.</p>
+<p>
+Ursprung: $source / $user 
+<p>
+<hr>
+<p align="center">
+Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION
+</p>.
+};
+
+print $cgi->end_html();
+
+exit 0;

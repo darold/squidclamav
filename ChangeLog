@@ -1,0 +1,106 @@
+2012-01-15 version 6.5
+
+	- Fix a squidclamav crash when maxsize is removed from configuration
+	  file or disabled/set to 0. Thanks to Pascal Bendeich for the report.
+	- Fix an issue when downloaded file size is upper than clamd.conf limit
+	  set into the StreamMaxLength configuration directive. Thanks to Arnvid
+	  Karstad for the report.
+	- All cgi Perl script have been modified to report unsafe browsing.
+	- Add a note about ClamAV and the support for Google Safe Browsing
+	  database. As clamd will returned something like:
+		Safebrowsing.<something> FOUND
+	  this will be redirected by squidclamav just like if a virus was found.
+	  Thanks to Michael Grasso for the request.
+
+
+2011-08-19 version 6.4
+
+	- Change default value for clamd_local configuration directive to the
+	  common package default clamd local socket '/var/run/clamav/clamd.ctl'.
+	- The origin of the double free corruption was partially found in last
+	  release. It is now completely fixed. Thanks to Tim Weippert for the
+	  report.
+	- The call to squidGuard from SquidClamav by a bidirectional pipe seem
+	  to make squid/c-icap system going slower and slower. The reason comes
+	  from more and more pending squidGuard processes after c-icap thread
+	  restarting. The historical reason of this feature is related to Squid
+	  version 2.x that doesn't allow to chained url_rewrite_program. I think
+	  this is no more useful so the squidguard configuration directive will
+	  be removed in next major release. Thank to Marco Schuth and David
+	  Tannheimeri for the report.
+	  You'd better use the Squid configuration file (squid.conf) and the
+	  'url_rewrite_program' directive to use squidGuard. There's no plan to
+	  reintroduce the call to squidGuard from SquidClamav at least until
+	  squidGuard has a daemon mode or you really asked for it.
+	- Fix an issue on reallocating mishandled null pattern array.
+
+
+2011-06-26 version 6.3
+
+	- Remove obsolete code on log_file configuration directive.
+	- Fix double free corruption when sending a configuration reload
+	  command: echo -n "squidclamav:cfgreload" >> /var/run/c-icap/c-icap.ctl
+	  Thanks to David Tannheimer for the report. This bug appears only when
+	  using local Unix socket to connect clamd.
+	- Compatibility check with c-icap-0.1.6: ok
+
+2011-02-26 version 6.2
+
+	- Fix squidclamav crash when X-Client-IP is not forwarded by default
+	  from squid to icap, i-e: when 'icap_send_client_ip on' is not set
+	  into squid.conf. Thanks to Diego Elio Pettenò for the patch.
+	- Force client Ip and Username to '-' when they are not set or null.
+	  Thanks to Alex for the report.
+	- Fix a signal 11 when username was not set.
+	- Add new configuration option 'dnslookup' to disable DNS lookup of
+	  client ip address. Default is enabled for backward compatibility but
+	  you may desactivate this feature if you don't use trustclient with
+	  hostname in the regexp. Disabling it will also speed up squidclamav.
+
+2010-10-29 version 6.1
+
+	- Add missing "#include <signal.h>", compilation on BSD and possibly
+	  other distribution was not working. Thanks to Alex for the report.
+	- Fix segmentation fault by gethostbyaddr when remote client can't be
+	  resolved. Thank to Valery for the report.
+
+2010-10-21 version 6.0
+
+	This is the initial release of the v6.x branch. It works exactly as
+	v5.x branch except that it now use the ICAP protocol and must be run
+	as a c-icap server service. The goal of this first release is to port
+	SquidClamav to the ICAP protocol to solve all limitations encountered
+	in the previous releases (audio/video streaming, site with session like
+	webmail, support of POST request, etc).
+
+	Next release will tend to have real on stream scanning and bypass the
+	size limitation. Coming soon, but I first want to be sure that c-icap
+	is the good choose for stability and performance but also that this new 
+	branch is stable and speed enough. I hope you make me feedback.
+
+	This release needs squid v3.x and the c-icap server.
+
+	Also there's no packaging available yet.
+
+	The squidclamav.conf configuration file from v5.x is fully compatible
+	but some directives are now obsolete, here is the list:
+
+		squid_ip
+		squid_port
+		maxredir
+		useragent
+		trust_cache
+		stat
+		debug
+		clamd_timeout
+
+	One have change, this is the 'timeout' directive that was used to set
+	the timeout for libcurl download. As cURL is no more used, this timeout
+	directive is now used to set the timeout for clamd connect. His default
+	value is 1 second and can be set up to 10.
+
+	Others works as before.
+
+	YOU MUST tune the c-icap server following your need (number of users),
+	see http://squidclamav.darold.net/tuning.html for the configuration
+	directive that could help.
