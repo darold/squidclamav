@@ -400,6 +400,9 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
 	   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No antivir check, Content-Length is upper than maxsize (%d>%d)\n", (int)content_length, (int)maxsize);
 	   return CI_MOD_ALLOW204;
         }
+     } else if (content_length == 0) {
+	   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Content-Length is null, can't know file size.\n");
+	   return CI_MOD_ALLOW204;
      }
 
      /* Get the content type header */
