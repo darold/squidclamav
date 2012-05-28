@@ -291,6 +291,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      ci_off_t content_length;
      char *chain_ret = NULL;
      char *ret = NULL;
+     int chkipdone = 0;
 
      ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: processing preview header.\n");
 
@@ -321,17 +322,25 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      if ((clientip = ci_headers_value(req->request_header, "X-Client-IP")) != NULL) {
 	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: X-Client-IP: %s\n", clientip);
 	ip = inet_addr(clientip);
+	chkipdone = 0;
 	if (dnslookup == 1) {
 		if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
 			if (clientname->h_name != NULL) {
-				ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: X-Client-Name: %s\n", clientname->h_name);
 				/* if a TRUSTCLIENT match => no squidguard and no virus scan */
 				if (client_pattern_compare(clientip, clientname->h_name) > 0) {
 				   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
 				   return CI_MOD_ALLOW204;
 				}
+				chkipdone = 1;
 			}
 		  }
+	}
+	if (chkipdone == 0) {
+		/* if a TRUSTCLIENT match => no squidguard and no virus scan */
+		if (client_pattern_compare(clientip, NULL) > 0) {
+		   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+		   return CI_MOD_ALLOW204;
+		}
 	}
      } else {
 	/* set null client to - */
@@ -393,16 +402,12 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      }
 
      /* Get the content length header */
-     if ((content_length = ci_http_content_length(req)) > 0) {
-	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Length: %d\n", (int)content_length);
-        /* check the Content-Length against maxsize, if upper no scan */
-        if ((maxsize > 0) && (content_length >= maxsize)) {
-	   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No antivir check, Content-Length is upper than maxsize (%d>%d)\n", (int)content_length, (int)maxsize);
-	   return CI_MOD_ALLOW204;
-        }
-     } else if (content_length == 0) {
-	   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Content-Length is null, can't know file size.\n");
-	   return CI_MOD_ALLOW204;
+     content_length = ci_http_content_length(req);
+     ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Length: %d\n", (int)content_length);
+
+     if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
+	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: No antivir check, content-length upper than maxsize (%d > %d)\n", content_length, (int)maxsize);
+	return CI_MOD_ALLOW204;
      }
 
      /* Get the content type header */
@@ -442,8 +447,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
 	data->clientip = NULL;
      }
 
-     data->body = ci_simple_file_new(maxsize);
-     if (SEND_PERCENT_BYTES >= 0 && START_SEND_AFTER == 0) {
+     data->body = ci_simple_file_new(0);
+     if ((SEND_PERCENT_BYTES >= 0) && (START_SEND_AFTER == 0)) {
 	ci_req_unlock_data(req);
 	ci_simple_file_lock_all(data->body);
      }
@@ -473,11 +478,12 @@ int squidclamav_read_from_net(char *buf, int len, int iseof, ci_request_t * req)
 	return ci_simple_file_write(data->body, buf, len, iseof);
     }
 
-    if ((maxsize > 0) && (ci_simple_file_size(data->body) >= maxsize)) {
+    if ((maxsize > 0) && (data->body->bytes_in >= maxsize)) {
 	data->no_more_scan = 1;
 	ci_req_unlock_data(req);
 	ci_simple_file_unlock_all(data->body);
-    } else if (SEND_PERCENT_BYTES && START_SEND_AFTER < ci_simple_file_size(data->body)) {
+	ci_debug_printf(1, "DEBUG squidclamav_read_from_net: No more antivir check, downloaded stream is upper than maxsize (%d>%d)\n", data->body->bytes_in, (int)maxsize);
+    } else if (SEND_PERCENT_BYTES && (START_SEND_AFTER < data->body->bytes_in)) {
 	ci_req_unlock_data(req);
 	allow_transfer = (SEND_PERCENT_BYTES * (data->body->endpos + len)) / 100;
 	ci_simple_file_unlock(data->body, allow_transfer);
@@ -999,7 +1005,7 @@ client_pattern_compare(char *ip, char *name)
 				return 1;
 			/* Look at client name pattern matching */
 			/* return 2 if string matches fqdn TRUSTCLIENT pattern */
-			} else if (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0) {
+			} else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0)) {
 				if (debug != 0)
 					ci_debug_printf(2, "DEBUG client_pattern_compare: trustclient (%s) matched: %s\n", patterns[i].pattern, name);
 				return 2;
