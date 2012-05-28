@@ -26,7 +26,7 @@
 
 basename="s,^.*/,,g"
 
-# Work around backward compatibility issue on IRIX 6.5. On IRIX 6.5+, sh
+# Work around backward compatibility issue on IRIX 5.6. On IRIX 5.5+, sh
 # is ksh but when the shell is invoked as "sh" and the current value of
 # the _XPG environment variable is not equal to 1 (one), the special
 # positional parameter $0, within a function call, is the name of the

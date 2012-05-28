@@ -1,11 +1,11 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([SquidClamav], [6.5], [http://squidclamav.darold.net/], [squidclamav])
+AC_INIT([SquidClamav], [6.6], [http://squidclamav.darold.net/], [squidclamav])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/squidclamav.c])
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(squidclamav, 6.5)
+AM_INIT_AUTOMAKE(squidclamav, 6.6)
 AC_CONFIG_FILES([Makefile])
 AC_PREFIX_DEFAULT(/usr/local)
 

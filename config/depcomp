@@ -185,7 +185,7 @@ sgi)
     # Clip off the initial element (the dependent).  Don't try to be
     # clever and replace this with sed code, as IRIX sed won't handle
     # lines with more than a fixed number of characters (4096 in
-    # IRIX 6.5 sed, 8192 in IRIX 6.5).  We also remove comment lines;
+    # IRIX 5.6 sed, 8192 in IRIX 5.5).  We also remove comment lines;
     # the IRIX cc adds comments like `#:fec' to the end of the
     # dependency line.
     tr ' ' '
@@ -338,7 +338,7 @@ hp2)
 tru64)
    # The Tru64 compiler uses -MD to generate dependencies as a side
    # effect.  `cc -MD -o foo.o ...' puts the dependencies into `foo.o.d'.
-   # At least on Alpha/Redhat 6.1, Compaq CCC V6.5-504 seems to put
+   # At least on Alpha/Redhat 6.1, Compaq CCC V5.6-504 seems to put
    # dependencies in `foo.d' instead, so we check for that too.
    # Subdirectories are respected.
    dir=`echo "$object" | sed -e 's|/[^/]*$|/|'`
@@ -362,7 +362,7 @@ tru64)
       tmpdepfile1=$dir.libs/$base.lo.d   # libtool 1.4
       tmpdepfile2=$dir$base.o.d          # libtool 1.5
       tmpdepfile3=$dir.libs/$base.o.d    # libtool 1.5
-      tmpdepfile4=$dir.libs/$base.d      # Compaq CCC V6.5-504
+      tmpdepfile4=$dir.libs/$base.d      # Compaq CCC V5.6-504
       "$@" -Wc,-MD
    else
       tmpdepfile1=$dir$base.o.d
