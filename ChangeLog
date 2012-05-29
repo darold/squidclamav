@@ -3,7 +3,7 @@
 	- Rewrite entirely the squidclamav behavior with the maxsize directive.
 	  The previous fix was only a workaround.
 	- Fix a bug on 'trustclient' check part that was never executed if
-	  dnslookup was disabled. Thanks to Kandalf for the report.
+	  dnslookup was disabled. Thanks to Tinu for the report.
 
 2012-01-15 version 6.6
 
