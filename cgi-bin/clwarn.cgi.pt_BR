@@ -7,8 +7,11 @@ my $VERSION = '6.6';
 
 my $cgi = new CGI;
 
-my $url = $cgi->param('url') || '';
-my $virus = $cgi->param('virus') || '';
+my $url = CGI::escapeHTML($cgi->param('url')) || '';
+my $virus = CGI::escapeHTML($cgi->param('virus')) || '';
+my $source = CGI::escapeHTML($cgi->param('source')) || '';
+$source =~ s/\/-//;
+my $user = CGI::escapeHTML($cgi->param('user')) || '';
 
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um v&iacute;rus!";
 my $subtitle = 'est&aacute; infectada pelo v&iacute;rus';
