@@ -1,3 +1,12 @@
+2012-07-24 version 6.7
+
+	- Add a workaround for a squidGuard bug that unescape the URL and
+	  send it back unescaped. This result in garbage staying into pipe
+	  of the system command call and could crash squidclamav on next
+	  read or return false information. This is specially true with URL
+	  containing the %0D or %0A character. Thanks to John Xue for the
+	  report.
+
 2012-05-28 version 6.6
 
 	- Rewrite entirely the squidclamav behavior with the maxsize directive.
@@ -5,7 +14,7 @@
 	- Fix a bug on 'trustclient' check part that was never executed if
 	  dnslookup was disabled. Thanks to Tinu for the report.
 
-2012-01-15 version 6.6
+2012-01-15 version 6.5
 
 	- Fix a squidclamav crash when maxsize is removed from configuration
 	  file or disabled/set to 0. Thanks to Pascal Bendeich for the report.

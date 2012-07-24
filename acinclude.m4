@@ -6797,13 +6797,13 @@ AC_CACHE_CHECK([whether deplibs are loaded by dlopen],
     libltdl_cv_sys_dlopen_deplibs=yes
     ;;
   irix[[12345]]*|irix6.[[01]]*)
-    # Catch all versions of IRIX before 6.6, and indicate that we don't
+    # Catch all versions of IRIX before 6.7, and indicate that we don't
     # know how it worked for any of those versions.
     libltdl_cv_sys_dlopen_deplibs=unknown
     ;;
   irix*)
-    # The case above catches anything before 6.6, and it's known that
-    # at 6.6 and later dlopen does load deplibs.
+    # The case above catches anything before 6.7, and it's known that
+    # at 6.7 and later dlopen does load deplibs.
     libltdl_cv_sys_dlopen_deplibs=yes
     ;;
   netbsd*)
