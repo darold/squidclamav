@@ -6,6 +6,9 @@
 	  read or return false information. This is specially true with URL
 	  containing the %0D or %0A character. Thanks to John Xue for the
 	  report.
+	- Update documentation about the recommanded way to call squidGuard
+	  through the use of url_rewrite_program in squid.conf. You may not
+	  use the squidguard configuration directive into squidclamav.conf.
 
 2012-05-28 version 6.6
 
