@@ -133,7 +133,7 @@ void cfgreload_command(char *, int, char **);
 int create_pipe(char *command);
 int dconnect (void);
 int connectINET(char *serverHost, uint16_t serverPort);
-
+char * replace(const char *s, const char *old, const char *new);
 
 /* ----------------------------------------------------- */
 
@@ -365,10 +365,14 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      
      /* Check URL header against squidGuard */
      if (usepipe == 1) {
+	char *rbuff = NULL;
 	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Sending request to chained program: %s\n", squidguard);
 	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Request: %s %s %s %s\n", httpinf.url,clientip,username,httpinf.method);
-	fprintf(sgfpw,"%s %s %s %s\n",httpinf.url,clientip,username,httpinf.method);
+	/* escaping escaped character to prevent unescaping by squidguard */
+	rbuff = replace(httpinf.url, "%", "%25");
+	fprintf(sgfpw,"%s %s %s %s\n",rbuff,clientip,username,httpinf.method);
 	fflush(sgfpw);
+	xfree(rbuff);
 	/* the chained redirector must return empty line if ok or the redirection url */
 	chain_ret = (char *)malloc(sizeof(char)*MAX_URL_SIZE);
 	if (chain_ret != NULL) {
@@ -1626,5 +1630,42 @@ connectINET(char *serverHost, uint16_t serverPort)
 	}
 
         return asockd;
+}
+
+
+/**
+ * Searches all occurrences of old into s
+ * and replaces with new
+ */
+char *
+replace(const char *s, const char *old, const char *new)
+{
+	char *ret;
+	int i, count = 0;
+	size_t newlen = strlen(new);
+	size_t oldlen = strlen(old);
+
+	for (i = 0; s[i] != '\0'; i++) {
+		if (strstr(&s[i], old) == &s[i]) {
+			count++;
+			i += oldlen - 1;
+		}
+	}
+	ret = malloc(i + 1 + count * (newlen - oldlen));
+	if (ret != NULL) {
+		i = 0;
+		while (*s) {
+			if (strstr(s, old) == s) {
+				strcpy(&ret[i], new);
+				i += newlen;
+				s += oldlen;
+			} else {
+				ret[i++] = *s++;
+			}
+		}
+		ret[i] = '\0';
+	}
+
+	return ret;
 }
 
