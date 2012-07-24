@@ -363,9 +363,19 @@ CONFIGURATION
     cgi-script or send an email.
 
    Chained Url Checker
-    SquidClamav allow you to chain the SquidGuard program to check the Url
-    requested against blocklists using the 'squidguard' directive. You just
-    have to give the path to the program.
+    This directive is preserved for bacward compatibility but you must
+    remove it from your configuration file as it could result in many
+    squidclamav crash. Please use the 'url_rewrite_program' squid.conf
+    directive instead to call squidGuard.
+
+            url_rewrite_program /usr/bin/squidGuard
+            url_rewrite_children 15
+            url_rewrite_access allow all
+
+    If you still want to use it, SquidClamav allow you to chain the
+    SquidGuard program to check the Url requested against blocklists using
+    the 'squidguard' directive. You just have to give the path to the
+    program.
 
             squidguard /usr/local/squidGuard/bin/squidGuard
 
