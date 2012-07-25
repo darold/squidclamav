@@ -62,13 +62,13 @@ ci_service_xdata_t *squidclamav_xdata = NULL;
 int AVREQDATA_POOL = -1;
 
 int squidclamav_init_service(ci_service_xdata_t * srv_xdata, struct ci_server_conf *server_conf);
-int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata, struct ci_server_conf *server_conf);
-void squidclamav_close_service();
 int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, ci_request_t *);
 int squidclamav_end_of_data_handler(ci_request_t *);
 void *squidclamav_init_request_data(ci_request_t * req);
+void squidclamav_close_service();
 void squidclamav_release_request_data(void *data);
 int squidclamav_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof, ci_request_t * req);
+int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata, struct ci_server_conf *server_conf);
 
 /* General functions */
 void set_istag(ci_service_xdata_t * srv_xdata);
@@ -154,14 +154,13 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     xops = CI_XCLIENTIP | CI_XSERVERIP;
     xops |= CI_XAUTHENTICATEDUSER | CI_XAUTHENTICATEDGROUPS;
     ci_service_set_xopts(srv_xdata, xops);
- 
 
     /*Initialize object pools*/
     AVREQDATA_POOL = ci_object_pool_register("av_req_data_t", sizeof(av_req_data_t));
 
     if(AVREQDATA_POOL < 0) {
 	 ci_debug_printf(0, "FATAL squidclamav_init_service: error registering object_pool av_req_data_t\n");
-	 return 0;
+	 return CI_ERROR;
     }
 
     /* Reload configuration command */
@@ -175,10 +174,10 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
 
     if (load_patterns() == 0) {
-	return 0;
+	return CI_ERROR;
     }
 
-    return 1;
+    return CI_OK;
 }
 
 void cfgreload_command(char *name, int type, char **argv)
@@ -212,15 +211,18 @@ void cfgreload_command(char *name, int type, char **argv)
 int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata, struct ci_server_conf *server_conf)
 {
 
-    if (squidguard == NULL) return 0;
+    if (squidguard == NULL) {
+	ci_debug_printf(1, "DEBUG squidclamav_post_init_service: squidguard not defined\n");
+	return CI_OK;
+    }
 
     ci_debug_printf(1, "DEBUG squidclamav_post_init_service: opening pipe to %s\n", squidguard);
 
     if (create_pipe(squidguard) == 1) {
-	return 0;
+	return CI_ERROR;
     }
 
-    return 1;
+    return CI_OK;
 }
 
 void squidclamav_close_service()
