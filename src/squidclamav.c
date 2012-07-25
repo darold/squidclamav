@@ -715,7 +715,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
           return CI_MOD_DONE;
      }
 
-     if (!ci_req_sent_data(req)) {
+     if (!ci_req_sent_data(req) && ci_req_allow204(req)) {
 	ci_debug_printf(2, "DEBUG squidclamav_end_of_data_handler: Responding with allow 204\n");
 	return CI_MOD_ALLOW204;
      }
