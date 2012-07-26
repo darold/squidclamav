@@ -1,3 +1,12 @@
+2012-07-26 version 6.8
+
+	- Compatibility fix with new c-icap 0.2.1 release that prevent
+	  squidclamav service to be initialized. Thanks to Martin Matuska
+	  for the patch.
+	- Fix issue with new c-icap 0.2.1 release that generate an error
+	  error each time squidclamav return CI_MOD_204 in end of data
+	  handler function. Thanks to Martin Matuska or the patch.
+
 2012-07-24 version 6.7
 
 	- Add a workaround for a squidGuard bug that unescape the URL and

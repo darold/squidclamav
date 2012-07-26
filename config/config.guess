@@ -248,7 +248,7 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 		UNAME_MACHINE="alphapca57" ;;
 	    "EV6 (21264)")
 		UNAME_MACHINE="alphaev6" ;;
-	    "EV6.7 (21264A)")
+	    "EV6.8 (21264A)")
 		UNAME_MACHINE="alphaev67" ;;
 	    "EV6.8CB (21264C)")
 		UNAME_MACHINE="alphaev68" ;;
