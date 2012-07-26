@@ -588,14 +588,14 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      /* SCAN DATA HERE */
      if ((sockd = dconnect ()) < 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't connect to Clamd daemon.\n");
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
      ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Sending STREAM command to clamd.\n");
 
      if (write(sockd, "STREAM", 6) <= 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write to Clamd socket.\n");
 	close(sockd);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
 
      while (loopw > 0) {
@@ -611,7 +611,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      if (loopw == 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Clamd daemon not ready for stream scanning.\n");
 	close(sockd);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
 
      ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Received port %d from clamd.\n", port);
@@ -620,7 +620,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      if ((wsockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't create the Clamd socket.\n");
 	close(sockd);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
 
      server.sin_family = AF_INET;
@@ -630,7 +630,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      if (getpeername(sockd, (struct sockaddr *) &peer, (socklen_t *) &peer_size) < 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't get socket peer name.\n");
 	close(sockd);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
      switch (peer.sin_family) {
 	case AF_UNIX:
@@ -642,7 +642,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	default:
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Unexpected socket type: %d.\n", peer.sin_family);
 	close(sockd);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
 
      ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Trying to connect to clamd [port: %d].\n", port);
@@ -650,7 +650,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      if (connect (wsockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
 	close(wsockd);
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't connect to clamd [port: %d].\n", port);
-	return CI_MOD_ALLOW204;
+	goto done_allow204;
      }
      ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Ok connected to clamd on port: %d.\n", port);
 
@@ -715,6 +715,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
           return CI_MOD_DONE;
      }
 
+done_allow204:
      if (!ci_req_sent_data(req) && ci_req_allow204(req)) {
 	ci_debug_printf(2, "DEBUG squidclamav_end_of_data_handler: Responding with allow 204\n");
 	return CI_MOD_ALLOW204;
