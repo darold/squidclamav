@@ -577,6 +577,7 @@ I must also thank all the great contributors:
         - Leonardo Humberto Liporati from www.ig.com.br
         - Dale Laushman from The Uptime Group
         - Rainer schoepf from Proteosys.com
+	- Yann Ormanns
 
 and all others who help me to build a useful and reliable product.
 
