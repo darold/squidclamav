@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2012-07-24" "perl v5.10.1" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2012-08-16" "perl v5.10.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -134,43 +134,43 @@ SquidClamav v6 \- HTTP Antivirus for Squid based on ClamAv and the ICAP protocol
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 SquidClamav v6 is an antivirus for the Squid proxy based on the \s-1ICAP\s0 protocol
-and the Awards winnings ClamAv anti-virus toolkit. Using it will help you
+and the awards-winning ClamAv anti-virus toolkit. Using it will help you
 securing your home or enterprise network web traffic. SquidClamav is the most
 efficient antivirus tool for \s-1HTTP\s0 traffic available for free, it is written
-in C as a c\-icap service and can handle several thousands of connections.
+in C as a c\-icap service and can handle several thousands of connections at once.
 .PP
-Previous versions was only working as Squid Redirector but this had some
-bad limitations and breaks many sites using cookies and post \s-1HTTP\s0 method. The
-reason is that older squidclamav release (< 6.0) had to request through libcurl
-the \s-1URL\s0 given by Squid to download the file and scan it. But this \s-1URL\s0 doesn't
+Previous versions were only working as a Squid Redirector but this had some
+bad limitations and broke many sites using cookies and post \s-1HTTP\s0 method. The
+reason is that older squidclamav releases (< 6.0) had to request the \s-1URL\s0 given 
+by Squid through libcurl to download the file and scan it. But this \s-1URL\s0 doesn't
 include the post parameters nor any header information like cookies. The other
-advantage is that you can now scan video/audio streaming without problem.
+advantage is that you can now scan video/audio streaming without any problems.
 .PP
-SquidClamav v6 bypass theses limitations by only scanning the \s-1HTTP\s0 stream sent
-by Squid through the \s-1ICAP\s0 server. It don't make \s-1HTTP\s0 request itself so this is
-a gain of performance and ensure that the data scanned are the same that the
-user has requested.
+SquidClamav v6 bypasses theses limitations by scanning only the \s-1HTTP\s0 stream sent
+by Squid through the \s-1ICAP\s0 server. It doesn't make \s-1HTTP\s0 requests itself so this is
+a gain of performance and ensures that the data scanned is the same as the user
+has requested.
 .PP
 Why use c\-icap server? This is the only open source icap server written in C,
-that mean it is very fast and as I know/tested stable enough. I don't have time
+it is very fast and as I know/tested stable enough. I don't have time
 to write my own so I think this is the best choice. If you don't think so and
-reports me too many problems related to c\-icap don't worry I will help to make
-it better otherwise I will write my own but the best choice is to help c\-icap.
+report me too many problems related to c\-icap, don't worry, I will help to make
+it better \- otherwise I will write my own but the best choice is to help c\-icap.
 .PP
-Why writing and other clamav c\-icap module? Well, to be honest, outside the
+Why writing another clamav c\-icap module? Well, to be honest, outside the
 survival of SquidClamav, I think that using clamd instead of libclamav to scan
 files is speediest and more simple than the srv_clamav module provided with the
 c\-icap server. The other argument is that you can have your own redirect page
-like with previous version of SquidClamav. And to ending this part SquidGuard
-can still be call and used like in previous release, It means faster and with
-dedicated redirect page defined in your squidGuard configuration file.
+like with previous versions of SquidClamav. And to ending this part SquidGuard
+can still be called and used like in previous releases, it means faster and with
+dedicated redirect pages defined in your squidGuard configuration file.
 .PP
-SquidClamav v6 is still faster than any others and can handle several thousands
-of simultaneous users, this is what we need.
+SquidClamav v6 is still faster than any other \s-1HTTP\s0 antivirus and can handle 
+several thousands of simultaneous users at once, this is what we need.
 .PP
 The other unique feature of SquidClamav is that you can have Clamd failover by
-setting up to 4 clamd server ip address. When a clamd server is not reachable
-in the second, SquidClamav switch the next ip address.
+setting up up to 4 clamd server \s-1IP\s0 addresses. When a clamd server is not reachable
+in one second, SquidClamav switches to the next \s-1IP\s0 address.
 .PP
 If you are using ClamAV above 0.95, SquidClamav will have support for Google
 Safe Browsing database. All signatures provided by Google Safe Browsing Database
@@ -180,27 +180,27 @@ will be prefixed with the Safebrowsing tag. If ClamAV reports:
 \&        Safebrowsing.<something> FOUND
 .Ve
 .PP
-this will be redirected by squidclamav just like if a virus was found.
+This will be redirected by squidclamav just like if a virus was found.
 .SH "USAGE"
 .IX Header "USAGE"
 .SS "Generic Program Information"
 .IX Subsection "Generic Program Information"
-SquidClamav v6 has been completely rewritten to be use through the Squid v3.x
+SquidClamav v6 has been completely rewritten to be used through the Squid v3.x
 \&\s-1ICAP\s0 feature allowing \*(L"on stream\*(R" scanning. It is now built as a c\-icap server
 service but keeps all features from v5 and is fully compatible with the old
 SquidClamav configuration file. The squidclamav configuration file is unchanged
-minus some obsoletes directives.
+minus some obsolete directives.
 .PP
-This also mean that SquidClamav can no more be run into an interactive console
-for testing your \s-1URL\s0. All debug information will now goes to the c\-icap logfile.
+This also means that SquidClamav can no more be run into an interactive console
+for testing your \s-1URL\s0. All debug information will now go to the c\-icap logfile.
 .SS "Installing Squid"
 .IX Subsection "Installing Squid"
 .SS "Setting SquidClamav as Squid Icap service"
 .IX Subsection "Setting SquidClamav as Squid Icap service"
-I want SquidClamav as c\-icap service to be installed and configured the more
-easier as possible and compatible with the old configuration file. This mean
-that I voluntary omit some capabilities of c\-icap server to preserve a full
-compatibility with the old squidclamav.conf file.
+I want SquidClamav to be installed as a c\-icap service, to be configured as
+easy as possible and to be compatible with the old configuration file. This 
+means that I voluntary omit some capabilities of c\-icap server to preserve a 
+full compatibility with the old squidclamav.conf file.
 .PP
 \fISquid v3.x installation and configuration\fR
 .IX Subsection "Squid v3.x installation and configuration"
@@ -214,7 +214,8 @@ and configure squid with the following option:
 .PP
 I don't know what other options you are using but you have to add this one
 to your configure command. If you prefer to use distribution packaging you
-may already have it configured if you can install the c\-icap package too.
+may already have it configured like this if you can install the c\-icap 
+package too.
 .PP
 If you don't know, run the following command an search for the configuration
 directive: \-\-enable\-icap\-client
@@ -230,8 +231,8 @@ Once you have it enabled, to integrate c\-icap and SquidClamav to your squid
 cache just edit squid.conf and set the following directives.
 .IP "Squid 3.1.x configuration" 4
 .IX Item "Squid 3.1.x configuration"
-There's some configuration difference between 3.1.x and 3.0.x Squid version.
-Here are those I use for Squid 3.1.x:
+There are some configuration differences between 3.1.x and 3.0.x Squid version.
+Here are the directives I use for Squid 3.1.x:
 .Sp
 .Vb 11
 \&        icap_enable on
@@ -250,15 +251,15 @@ Here are those I use for Squid 3.1.x:
 If you don't know where to put them in squid.conf, just search for 'icap_.*'
 and add those configuration lines at the end of the icap section.
 .Sp
-Here the bypass is set to 1, that mean that in case of \s-1ICAP\s0 problem squid will
+Here the bypass is set to 1, that means that in case of \s-1ICAP\s0 problems squid will
 simply ignore the error and continue. This is the equivalent of the bridge mode
 in version 5.x. I recommand to disable this feature when you want to check the
 load on your server to be able to tune c\-icap and clamd.
 .IP "Squid 3.0.x configuration" 4
 .IX Item "Squid 3.0.x configuration"
 For squid 3.0.x you must replace 'bypass=1' by '1' or 'bypass=0' by '0' and
-the access to the service is defined at a class level. Only the last fourth
-configuration line change from version 3.1.x.
+the access to the service is defined at a class level. Only the last four
+configuration lines change from version 3.1.x.
 .Sp
 .Vb 10
 \&        icap_enable on
@@ -284,26 +285,26 @@ simply ignore the error and continue. This is the equivalent of the bridge mode
 in version 5.x. I recommand to disable this feature when you want to check the
 load on your server to be able to tune c\-icap and clamd.
 .PP
-What that configuration directives do? It enables the \s-1ICAP\s0 client into Squid and
-tells Squid to send the logged username and client's Ip to the \s-1ICAP\s0 server. It
-also enable preview for faster SquidClamav work. The last four lines defined how
-to call the \s-1ICAP\s0 server. Here we call the squidclamav service on localhost and
-port 1344 but it can be on any other host and port. The bypass parameter set
-to 1 mean that Squid will continue without bothering about \s-1ICAP\s0 server or
-SquidClamav failure. This is just like the old bridge mode in the SquidClamav
-previous release. I don't want users to be bored by a continuously error message
-if SquidClamav or c\-icap have failure or if there's an error in configuration
-file. Users don't have to know about that, they want to surf and don't care
-about your problems :\-) If you don't think like me, just set the bypass argument
-to 0 and Squid will return an error message on failure.
+What do that configuration directives do? They enable Squid's \s-1ICAP\s0 client and 
+tell Squid to send the logged username and client's \s-1IP\s0 address to the \s-1ICAP\s0 server. 
+They also enable preview for faster SquidClamav work. The last four lines define 
+how to call the \s-1ICAP\s0 server. Here we call the squidclamav service on localhost and
+port 1344 (host and port can be changed). The bypass parameter set to 1 means that 
+Squid will continue without bothering about \s-1ICAP\s0 server or SquidClamav failure. This 
+is just like the old bridge mode in previous releases of SquidClamAV. I don't want 
+users to be bored by a continuously error message if SquidClamav or c\-icap produce
+errors or if there's an error in the configuration file. Users don't have to know 
+about that, they want to surf and don't care about your problems :\-) 
+If you don't think like me, just set the bypass argument to 0 and Squid will return 
+an error message in case of a failure.
 .PP
 \fIC\-icap server installation/configuration\fR
 .IX Subsection "C-icap server installation/configuration"
 .PP
-If you don't have package solution or encounter problem to install SquidClamav
-I recommand you to install the c\-icap server from source as follow. You can
+If you don't have package solutions or encounter problems when installing SquidClamav
+I recommand you to install the c\-icap server from source as following. You can
 download it from SourceForge at http://c\-icap.sourceforge.net/. Choose version
-c\-icap\-0.1.2 and later versions, then run:
+c\-icap\-0.1.2 or later versions, then run:
 .PP
 .Vb 3
 \&        ./configure \-\-prefix=/usr/local/c\-icap \-\-enable\-large\-files
@@ -319,18 +320,18 @@ SquidClamav just add the following line to the end of the file:
 \&        Service squidclamav squidclamav.so
 .Ve
 .PP
-Don't care about the srv_clamav.* configuration directives this will not breaks
-anything. SquidClamav do not use them but read its own directives from the file
-/etc/squidclamav.conf
+Don't care about the srv_clamav.* configuration directives, this will not break
+anything. SquidClamav doesn't use them but reads its own directives from the file
+/etc/squidclamav.conf.
 .PP
-You can disable the c\-icap embedded modules by commenting the lines:
+You can disable the c\-icap embedded modules by commenting out these lines:
 .PP
 .Vb 2
 \&        #Service url_check_module srv_url_check.so
 \&        #Service antivirus_module srv_clamav.so
 .Ve
 .PP
-this will preserve some resources.
+This will preserve some resources.
 .PP
 Following your installation you may need to create the /var/run/c\-icap/ where
 c\-icap server is writing pid and socket file.
@@ -344,8 +345,8 @@ to the same user/group running your Squid cache. For example:
 \&        Group proxy
 .Ve
 .PP
-of course you will need to change the owner of directory /var/run/c\-icap/ and
-the directory of your server log. See the ServerLog directive to know the path.
+Of course you will need to change the owner of directory /var/run/c\-icap/ and
+the directory of your server log. See the ServerLog directive to get the path.
 For me, I use the following commands to set the good rights on my installation:
 .PP
 .Vb 3
@@ -354,14 +355,14 @@ For me, I use the following commands to set the good rights on my installation:
 \&        chown \-R proxy:proxy /usr/local/c\-icap/
 .Ve
 .PP
-After that you can run the c\-icap server as explain below.
+After that you can run the c\-icap server as explained below.
 .PP
 \fISquidClamav installation/configuration\fR
 .IX Subsection "SquidClamav installation/configuration"
 .PP
-Installing SquidClamav require that you already have installed the c\-icap as
-explain above. You must provide the installation path of c\-icap to the configure
-command as follow:
+Installing SquidClamav requires that you already have installed the c\-icap as
+explained above. You must provide the installation path of c\-icap to the configure
+command as following:
 .PP
 .Vb 3
 \&        ./configure \-\-with\-c\-icap=/usr/local/c\-icap/
@@ -369,7 +370,7 @@ command as follow:
 \&        make install
 .Ve
 .PP
-this will install the squidclamav.so library into the c\-icap modules/services
+This will install the squidclamav.so library into the c\-icap modules/services
 repository.
 .PP
 \fIRuning c\-icap server\fR
@@ -381,7 +382,7 @@ Finally, you can run the c\-icap server as root user:
 \&        /usr/local/c\-icap/bin/c\-icap
 .Ve
 .PP
-Or any other path to the binary. If you want to display debugging information
+or any other path to the binary. If you want to display debugging information
 on the terminal, the previous command should be executed with the following
 arguments:
 .PP
@@ -389,67 +390,67 @@ arguments:
 \&        /usr/local/c\-icap/bin/c\-icap \-N \-D \-d 10
 .Ve
 .PP
-The first argument \-N prevents the c\-icap server from forking in the background,
+The first argument \-N prevents the c\-icap server from forking into the background,
 the second argument \-D enables the printing of messages to standard output, and
 the third argument \-d 10 enables the printing of full debugging information.
 .PP
 \fIReloading configuration without restarting the c\-icap server\fR
 .IX Subsection "Reloading configuration without restarting the c-icap server"
 .PP
-To force SquidClamav to reread his configuration file after change you can
+To force SquidClamav to reread its configuration file after changes you can
 send the following command to the c\-icap server
 .PP
 .Vb 1
 \&        echo \-n "squidclamav:cfgreload" > /var/run/c\-icap/c\-icap.ctl
 .Ve
 .PP
-It will reread all his configuration directive and restart pipes to squidGuard.
+It will reread all its configuration directives and restart pipes to squidGuard.
 So if you make changes to squidGuard you must execute this command to activate
-them into SquidClamav.
+them in SquidClamav.
 .PP
-Or to be sure that all is really initialized or that you have made change to the
-c\-icapi configuration file you can run the following command:
+Or to be sure that everything is really initialized or that you have made change 
+to the c\-icap configuration file you can run the following command:
 .PP
 .Vb 1
 \&        echo \-n "reconfigure" > /var/run/c\-icap/c\-icap.ctl
 .Ve
 .PP
-The service will reread the config file without the need for stop and restart
-the c\-icap server. The services will be reinitialized.
+The service will reread the config file without the need for stopping and restarting
+the c\-icap server. The service will just be reinitialized.
 .SH "CONFIGURATION"
 .IX Header "CONFIGURATION"
-By default, the configuration file must be /etc/squidclamav.conf, you can not
+By default, the configuration file must be /etc/squidclamav.conf, you may not
 use an other path unless you change it in the source code (see src/squidclamav.h).
 .PP
 SquidClamav installation will create a default file with the maximum security
-level. If you have low resource on your server there's some predefined pattern
-optimized for speed. Feel free to modify it to match your security level.
+level. If you have low resources on your server there's some predefined pattern
+optimized for speed. Feel free to modify it to match your desired security level.
 .PP
 The format of the configuration file consists in always lower case configuration
-directives name followed by a value. The name and the value must be separated by
+directive names followed by a value. The name and the value must be separated by
 a single space character. Comments are lines starting with a '#' character.
 .SS "Global configuration"
 .IX Subsection "Global configuration"
 \fILog file and debug\fR
 .IX Subsection "Log file and debug"
 .PP
-In version 6.x the directives 'logfile', 'debug' and 'stat' are obsoletes as
-logging and debug are now handle by the c\-icap server. You can control them
-using the c\-icap.conf directives:
+In version 6.x the directives 'logfile', 'debug' and 'stat' are obsolete as
+logging and debug are now handled by the c\-icap server. You can control them
+using the following c\-icap.conf directives:
 .PP
 .Vb 2
 \&        ServerLog /usr/local/c\-icap/var/log/server.log
 \&        DebugLevel 0
 .Ve
 .PP
-Debug informations are disable by default, do not enable it on production
-server as it cost a lot of system performance. The debug level can be set
+Debug information is disable by default, do not enable it on production
+systems as it costs a lot of performance. The debug level can be set
 from 1 up to 3 for SquidClamav but can be up to 10 for c\-icap.
 .PP
 \fIClamd daemon\fR
 .IX Subsection "Clamd daemon"
 .PP
-SquidClamav need to know where to contact clamd, the ClamAv daemon, for on
+SquidClamav needs to know where to contact clamd, the ClamAV daemon, for on
 stream virus scanning.
 .PP
 .Vb 3
@@ -459,18 +460,18 @@ stream virus scanning.
 .Ve
 .PP
 By default SquidClamav will contact clamd locally on the /tmp/clamd unix socket
-(clamd_local). If your clamd daemon use \s-1INET\s0 socket or stay in a remote server,
-you have to set the ip address and the port with clamd_ip and clamd_port.
+(clamd_local). If your clamd daemon uses \s-1INET\s0 socket or stays in a remote server,
+you have to set the \s-1IP\s0 address and the port with clamd_ip and clamd_port.
 .PP
-If you use \s-1INET\s0 socket the 'clamd_local' directive must be commented else
-SquidClamav will always used the clamd_local directive.
+If you use \s-1INET\s0 socket the 'clamd_local' directive must be commented, or
+SquidClamav will always use the clamd_local directive.
 .PP
 \fIClamd failover\fR
 .IX Subsection "Clamd failover"
 .PP
 If you have multiple ClamAv servers, SquidClamav is able to do failover between
-them. You just have to set 'clamd_ip' to a list of ip adresses separated by a
-coma. Do not insert space character in this list it will break all. For example:
+them. You just have to set 'clamd_ip' to a list of \s-1IP\s0 adresses separated by a
+comma. Do not insert space characters in this list or it will break all. For example:
 .PP
 .Vb 3
 \&        clamd_ip 192.168.1.5,192.168.1.13,192.168.1.9
@@ -478,39 +479,39 @@ coma. Do not insert space character in this list it will break all. For example:
 \&        timeout 1
 .Ve
 .PP
-You can set up to 5 clamd server. The clamd port must be the same for all these
-server as 'clamd_port' only accept one value.
+You can set up to 5 clamd servers. The clamd port must be the same for all these
+servers as 'clamd_port' only accepts one single value.
 .PP
-SquidClamav will always connect to the first available ip address. If it can not
-connect after 1 second it will try the next defined ip address. When a connect
-can be establish SquidClamav will reuse this last \*(L"working\*(R" ip address first to
+SquidClamav will always connect to the first \s-1IP\s0 address available. If this fails
+it will try the next defined \s-1IP\s0 address after 1 second. When a connect
+can be established SquidClamav will reuse this last \*(L"working\*(R" \s-1IP\s0 address first to
 not slow down process the next time.
 .PP
 If you think 1 second is a low value, you can change the connect timeout by
-editing file squidclamav.conf and set the 'timeout' directive to a higher value.For example :
+editing file squidclamav.conf and set the 'timeout' directive to a higher value. For example :
 .PP
 .Vb 1
 \&        timeout 2
 .Ve
 .PP
-Value must be set in second. Do not set it too high (< 5) or you can slow down
+Value must be set in seconds. Do not set it too high (< 5) or you can slow down
 everything.
 .PP
 \fIRedirection\fR
 .IX Subsection "Redirection"
 .PP
-When a virus is detected SquidClamav need to redirect the client to a warning
-page. You can find in the SquidClamav distribution a set of Perl \s-1CGI\s0 scripts
-with different language that you can use. To specify this redirection you have
-to use the 'redirect' directive as follow:
+When a virus is detected SquidClamav needs to redirect the client to a warning
+page. The SquidClamav distribution contains a set of Perl \s-1CGI\s0 scripts
+with different languages that you can use. To specify this redirection you have
+to use the 'redirect' directive as following:
 .PP
 .Vb 1
 \&        redirect http://proxy.samse.fr/cgi\-bin/clwarn.cgi
 .Ve
 .PP
-Take a look in the cgi-bin directory to see all translation of this cgi script.
+Take a look in the cgi-bin directory to see all translations of this cgi script.
 .PP
-Squidclamav will pass to this \s-1CGI\s0 the following parameters:
+Squidclamav will pass the following parameters to this \s-1CGI:\s0
 .PP
 .Vb 4
 \&        url=ORIGNAL_HTTP_REQUEST
@@ -531,8 +532,8 @@ By default it is disabled as you can also log this information with the cgi-scri
 \fIChained Url Checker\fR
 .IX Subsection "Chained Url Checker"
 .PP
-This directive is preserved for bacward compatibility but you must remove it
-from your configuration file as it could result in many squidclamav crash.
+This directive is preserved for backward compatibility but you must remove it
+from your configuration file as it could result in many squidclamav crashes.
 Please use the 'url_rewrite_program' squid.conf directive instead to call
 squidGuard.
 .PP
@@ -542,8 +543,8 @@ squidGuard.
 \&        url_rewrite_access allow all
 .Ve
 .PP
-If you still want to use it, SquidClamav allow you to chain the SquidGuard
-program to check the Url requested against blocklists using the 'squidguard'
+If you still want to use it, SquidClamav allows you to chain the SquidGuard
+program to check the \s-1URL\s0 requested against blocklists using the 'squidguard'
 directive. You just have to give the path to the program.
 .PP
 .Vb 1
@@ -551,12 +552,12 @@ directive. You just have to give the path to the program.
 .Ve
 .PP
 The chained program is called before the virus scan and any other SquidClamav
-operation. The call to this program can be disable with the 'whitelist',
-\&'trustuser' and 'trustclient' directives see SquidClamav Patterns for more
+operations. The call to this program can be disabled with the 'whitelist',
+\&'trustuser' and 'trustclient' directives. See SquidClamav Patterns for more
 information.
 .PP
 To log every chained program redirection enable the 'logredir' configuration
-directive as follow:
+directive as following:
 .PP
 .Vb 1
 \&        logredir 1
@@ -567,7 +568,7 @@ By default it is disabled as you can also log this information with squidguard.
 \fIMaxsize\fR
 .IX Subsection "Maxsize"
 .PP
-This directive allow to completely disable virus scan for files bigger than the
+This directive allows to disable virus scan completely for files bigger than the
 value in bytes. Default is 0, no size limit as you may want to control download
 size into squid.conf or clamd.
 .PP
@@ -576,8 +577,8 @@ size into squid.conf or clamd.
 .Ve
 .PP
 If you want to abort virus scan after a certain amount of data you must take a
-look at the clamd configuration directive 'StreamMaxLength' that will close
-stream when the given size is reach.
+look at the clamd configuration directive 'StreamMaxLength' that will close a
+stream when the given size is reached.
 .SS "Controlling SquidClamav behaviour"
 .IX Subsection "Controlling SquidClamav behaviour"
 As in SquidClamav v5.x, v6.0 will scan all downloaded files by default.
@@ -589,14 +590,14 @@ insensitive.
 \fIControl both chained program and virus scan\fR
 .IX Subsection "Control both chained program and virus scan"
 .PP
-There's 3 configuration directives that allow you to disable virus scan and
-call to chained redirector like SquidGuard. Those pattern matching are searched
+There are 3 configuration directives that allow you to disable virus scan and
+call to chained redirector like SquidGuard. Those pattern matchings are searched
 as soon as a Squid entry is received.
 .IP "whitelist" 4
 .IX Item "whitelist"
-The 'whitelist' configuration directive allow you to disable chained program
-and virus scan at \s-1URL\s0 level. When the given pattern match the \s-1URL\s0 SquidClamav
-fallback to Squid instantly.
+The 'whitelist' configuration directive allows you to disable chained program
+and virus scan at \s-1URL\s0 level. When the given pattern matches the \s-1URL\s0, SquidClamav
+falls back to Squid instantly.
 .Sp
 For example:
 .Sp
@@ -607,8 +608,8 @@ For example:
 will deliver any files from hosts on clamav.net domain directly.
 .IP "trustuser" 4
 .IX Item "trustuser"
-The 'trustuser' directive allow you to disable chained program and virus scan
-when an ident match the search pattern. On regex found SquidClamav fallback to
+The 'trustuser' directive allows you to disable chained program and virus scan
+when an ident matches the search pattern. On regex found SquidClamav falls back to
 Squid instantly. Of course you must have Squid authentication helper enabled.
 .Sp
 For example:
@@ -621,9 +622,9 @@ will let user logged as administrator to not be bored by chained program and
 virus scan.
 .IP "trustclient" 4
 .IX Item "trustclient"
-The 'trustclient' directive allow you to disable chained program and virus scan
-if the client source ip address or \s-1DNS\s0 name match the search pattern. The source
-ip address can be a single ip or a network following the given regex pattern.
+The 'trustclient' directive allows you to disable chained program and virus scan
+if the client source \s-1IP\s0 address or \s-1DNS\s0 name match the search pattern. The source
+\&\s-1IP\s0 address can be a single \s-1IP\s0 address or an address range following the given regex pattern.
 .Sp
 For example:
 .Sp
@@ -637,21 +638,21 @@ The first and the last entry will disable chained program and virus scan for a
 single computer and the second will do for en entire class C network.
 .IP "dnslookup" 4
 .IX Item "dnslookup"
-Enable / disable \s-1DNS\s0 lookup of client ip address. Default is enabled '1' to
-preserve backward compatibility but you must desactivate this feature if you
+Enable / disable \s-1DNS\s0 lookup of client \s-1IP\s0 address. Default is enabled '1' to
+preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a \s-1DNS\s0
 on your network. Disabling it will also speed up squidclamav.
 .PP
 \fIControl virus scan\fR
 .IX Subsection "Control virus scan"
 .PP
-There's 3 configuration directives that allow you to disable virus scan for
+There are 3 configuration directives that allow you to disable virus scan for
 downloaded files.
 .IP "abort" 4
 .IX Item "abort"
 The 'abort' directive will let you disable virus scanning at \s-1URL\s0 level (not
-chained program). When the \s-1URL\s0 match the regex pattern SquidClamav fallback to
-Squid immediately after the call to the chained program if there's one defined.
+chained program). When the \s-1URL\s0 matches the regex pattern, SquidClamav falls back to
+Squid immediately after the call to the chained program, if one is defined there.
 .Sp
 For example:
 .Sp
@@ -660,16 +661,15 @@ For example:
 \&        abort .*\e.(png|gif|jpg)$
 .Ve
 .Sp
-The first regexp will exclude from virus scanning any file hosted on domain
-squid\-cache.org, the last one will exclude all \s-1PNG\s0, \s-1GIF\s0 and \s-1JPEG\s0 image from
-scanning.
+The first regexp will exclude any file hosted on domain squid\-cache.org from virus scanning, 
+the last one will exclude all \s-1PNG\s0, \s-1GIF\s0 and \s-1JPEG\s0 image from scanning.
 .IP "abortcontent" 4
 .IX Item "abortcontent"
-The 'abortcontent' directive allow you to exclude from virus scanning any file
-whose Content-Type match the regex pattern. This directive cost more time
-because SquidClamav need to download the \s-1HTTP\s0 header for a file with a \s-1HEAD\s0
-request. Note that some sites do not answer to \s-1HEAD\s0 request so content type
-could not be retrieved so they will be scanned.
+The 'abortcontent' directive allows you to exclude any file from virus scanning,
+whose Content-Type matches the regex pattern. This directive costs more time
+because SquidClamav needs to download the \s-1HTTP\s0 header for a file with a \s-1HEAD\s0
+request. Note that some sites do not answer to \s-1HEAD\s0 requests so the content type
+will not be able to be retrieved so they will be scanned.
 .Sp
 Example:
 .Sp
@@ -683,7 +683,7 @@ directive to match dynamic image or with parameters at end. The second will
 allow your users to view streamed video instantly.
 .IP "maxsize" 4
 .IX Item "maxsize"
-As said above, the 'maxsize' directive allow you to not scan a file when the
+As said above, the 'maxsize' directive allows you not to scan a file when the
 content-length of the file is bigger than the defined value. By default there's
 no size limit.
 .PP
@@ -704,44 +704,44 @@ In order to enable this feature, you must add a\*^XXSafeBrowsing Yesa\*^XX to fr
 There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the database directory, ClamAV will enable safe browsing. To turn it off you need to update freshclam.conf and remove the safebrowsing files from the database directory before restarting clamd.
 .SS "Testing SquidClamav"
 .IX Subsection "Testing SquidClamav"
-As SquidClamav v6.0 is now a c\-icap service it can no more be run at console
-in interactive mode. To check what is going wrong you must edit c\-icap.conf
-fine and set DebugLevel to 3 and enable ServerLog. Then check for line with
-squidclamav string into the log file defined with ServerLog.
-.SS "Performances"
-.IX Subsection "Performances"
+As SquidClamav v6.0 is now a c\-icap service, it can no more be run at console
+in interactive mode. To check what is going wrong, you must edit c\-icap.conf
+file, set DebugLevel to 3 and enable ServerLog. Then check for lines with
+squidclamav string in the log file which is defined with ServerLog in squidclamav's config.
+.SS "Performance"
+.IX Subsection "Performance"
 With SquidClamav v6.x the way to tune your service is to tune c\-icap server and
-clamd daemon. On heavy http acces, putting the clamd daemon on a dedicated
-server with mutilple \s-1CPU\s0 will really help.
+clamd daemon. On heavy http access, putting the clamd daemon on a dedicated
+server with multiple \s-1CPU\s0 will really help.
 .PP
 If you experience Squid \*(L"\s-1ICAP\s0 protocol error\*(R" (with bypass enabled) please
-consider increasing the c\-icap following parameters: StartServers, MaxServers,
-MinSpareThreads, MaxSpareThreads, ThreadsPerChild. Increase also in clamd.conf
-parameter: MaxThreads may help.
+consider increasing the following c\-icp parameters: StartServers, MaxServers,
+MinSpareThreads, MaxSpareThreads, ThreadsPerChild. Increasing MaxThreads parameter
+in clamd.conf may also help.
 .SH "BUGS"
 .IX Header "BUGS"
 Please report any bugs, patches, discussion, etc. to <gilles \s-1AT\s0 darold \s-1DOT\s0 net>.
-.SH "FEATURE REQUEST"
-.IX Header "FEATURE REQUEST"
-If you need new features let me know at <gilles \s-1AT\s0 darold \s-1DOT\s0 net>. This help
+.SH "FEATURE REQUESTS"
+.IX Header "FEATURE REQUESTS"
+If you need new features let me know at <gilles \s-1AT\s0 darold \s-1DOT\s0 net>. This helps
 a lot to develop a better/useful tool.
 .SH "HOW TO CONTRIBUTE ?"
 .IX Header "HOW TO CONTRIBUTE ?"
 Any contribution to build a better tool is welcome, you just have to send me
-your ideas, features request or patches and there will be applied.
+your ideas, features requests or patches and they will be applied.
 .SH "AUTHOR"
 .IX Header "AUTHOR"
 Gilles Darold <gilles \s-1AT\s0 darold \s-1DOT\s0 net>
 .SH "ACKNOWLEDGEMENT"
 .IX Header "ACKNOWLEDGEMENT"
 Thanks to Squid\-cache.org, Clamav.net and c\-icap.sf.net for their great
-softwares.
+software.
 .PP
-Specials thanks to Christos Tsantilas for his implementation of the
-c\-icap server. Lot's of SquidClamav v6 source code have been learn
-or simply cut and paste from the source code of his clamav service.
+Special thanks to Christos Tsantilas for his implementation of the
+c\-icap server. Lots of SquidClamav v6 source code has been learned
+or simply cut and pasted from the source code of his clamav service.
 .PP
-I must also thanks all the great contributors:
+I must also thank all the great contributors:
 .PP
 .Vb 3
 \&        \- Leonardo Humberto Liporati from www.ig.com.br
@@ -749,12 +749,12 @@ I must also thanks all the great contributors:
 \&        \- Rainer schoepf from Proteosys.com
 .Ve
 .PP
-and all others who help me to build a usefull and reliable product.
+and all others who help me to build a useful and reliable product.
 .SH "LICENSE"
 .IX Header "LICENSE"
 Copyright (c) 2005\-2012 Gilles Darold \- All rights reserved.
 .PP
-Some code are Copyright (C) 2004\-2008 Christos Tsantilas
+Some code is Copyright (C) 2004\-2008 Christos Tsantilas
 .PP
 This program is free software: you can redistribute it and/or modify
 it under the terms of the \s-1GNU\s0 General Public License as published by
