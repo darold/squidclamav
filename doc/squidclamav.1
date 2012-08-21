@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2012-08-16" "perl v5.10.1" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2012-08-21" "perl v5.10.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -642,6 +642,12 @@ Enable / disable \s-1DNS\s0 lookup of client \s-1IP\s0 address. Default is enabl
 preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a \s-1DNS\s0
 on your network. Disabling it will also speed up squidclamav.
+.IP "safebrowsing" 4
+.IX Item "safebrowsing"
+Enable / Disable Clamav Safe Browsing feature. You mus have enabled the
+corresponding behavior in clamd by enabling SafeBrowsing into freshclam.conf
+Enabling it will first make a safe browsing request to clamd and then the
+virus scan request.
 .PP
 \fIControl virus scan\fR
 .IX Subsection "Control virus scan"

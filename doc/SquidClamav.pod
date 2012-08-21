@@ -463,6 +463,13 @@ preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a DNS
 on your network. Disabling it will also speed up squidclamav.
 
+=item safebrowsing
+
+Enable / Disable Clamav Safe Browsing feature. You mus have enabled the
+corresponding behavior in clamd by enabling SafeBrowsing into freshclam.conf
+Enabling it will first make a safe browsing request to clamd and then the
+virus scan request. 
+
 =back
 
 =head3 Control virus scan

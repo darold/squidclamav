@@ -105,6 +105,7 @@ int current_pattern_size = 0;
 ci_off_t maxsize = 0;
 int logredir = 0;
 int dnslookup = 1;
+int safebrowsing = 0;
 
 /* Used by pipe to squidGuard */
 int usepipe = 0;
@@ -194,6 +195,7 @@ void cfgreload_command(char *name, int type, char **argv)
     maxsize = 0;
     logredir = 0;
     dnslookup = 1;
+    safebrowsing = 0;
     clamd_curr_ip = (char *) malloc (sizeof (char) * 128);
     memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
     if (load_patterns() == 0)
@@ -1203,6 +1205,14 @@ add_pattern(char *s)
 	if(strcmp(type, "dnslookup") == 0) {
 		if (dnslookup == 1)
 		   dnslookup = atoi(first);
+		xfree(type);
+		xfree(first);
+		return 1;
+	}
+
+	if(strcmp(type, "safebrowsing") == 0) {
+		if (safebrowsing == 0)
+		   safebrowsing = atoi(first);
 		xfree(type);
 		xfree(first);
 		return 1;

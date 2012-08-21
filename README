@@ -466,6 +466,12 @@ CONFIGURATION
         if you don't have a DNS on your network. Disabling it will also
         speed up squidclamav.
 
+    safebrowsing
+        Enable / Disable Clamav Safe Browsing feature. You mus have enabled
+        the corresponding behavior in clamd by enabling SafeBrowsing into
+        freshclam.conf Enabling it will first make a safe browsing request
+        to clamd and then the virus scan request.
+
    Control virus scan
     There are 3 configuration directives that allow you to disable virus
     scan for downloaded files.
