@@ -135,6 +135,7 @@ int create_pipe(char *command);
 int dconnect (void);
 int connectINET(char *serverHost, uint16_t serverPort);
 char * replace(const char *s, const char *old, const char *new);
+int squidclamav_safebrowsing(char *url, char *tmpbuf);
 
 /* ----------------------------------------------------- */
 
@@ -409,6 +410,24 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
 	   return CI_MOD_ALLOW204;
      }
 
+     if (safebrowsing == 1) {
+	char *tmpbuf = NULL;
+	if (squidclamav_safebrowsing(httpinf.url, tmpbuf) == 1) {
+		char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
+		snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, httpinf.url, clientip, username, tmpbuf);
+		if (logredir == 0)
+		   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Malware redirection: %s.\n", urlredir);
+		if (logredir)
+		    ci_debug_printf(0, "INFO squidclamav_check_preview_handler: Malware redirection: %s.\n", urlredir);
+		/* Create the redirection url to squid */
+		data->blocked = 1;
+		generate_redirect_page(urlredir, req, data);
+		xfree(urlredir);
+	        xfree(tmpbuf);
+	        return CI_MOD_CONTINUE;
+	 }
+	 xfree(tmpbuf);
+     }
      /* Get the content length header */
      content_length = ci_http_content_length(req);
      ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Length: %d\n", (int)content_length);
@@ -1681,4 +1700,136 @@ replace(const char *s, const char *old, const char *new)
 
 	return ret;
 }
+
+int
+squidclamav_safebrowsing(char *url, char *clbuf)
+{
+     char cbuff[MAX_URL_SIZE+60];
+
+     ssize_t ret;
+     int nbread = 0;
+     int loopw = 60;
+     uint16_t port;
+     struct sockaddr_in server;
+     struct sockaddr_in peer;
+     size_t peer_size;
+     char *pt = NULL;
+     int sockd;
+     int wsockd; 
+
+     ci_debug_printf(2, "DEBUG squidclamav_safebrowsing: looking for Clamav SafeBrowsing check.\n");
+
+     /* SCAN DATA HERE */
+     if ((sockd = dconnect ()) < 0) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't connect to Clamd daemon.\n");
+	return 0;
+     }
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Sending STREAM command to clamd.\n");
+
+     if (write(sockd, "STREAM", 6) <= 0) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to Clamd socket.\n");
+	close(sockd);
+	return 0;
+     }
+
+     while (loopw > 0) {
+	memset (cbuff, 0, sizeof(cbuff));
+	ret = read (sockd, cbuff, MAX_URL_SIZE);
+	if ((ret > -1) && (pt = strstr (cbuff, "PORT"))) {
+	   pt += 5;
+	   sscanf(pt, "%d", (int *) &port);
+	   break;
+	}
+	loopw--;
+     }
+     if (loopw == 0) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Clamd daemon not ready for stream scanning.\n");
+	close(sockd);
+	return 0;
+     }
+
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Received port %d from clamd.\n", port);
+
+     /* connect to clamd given port */
+     if ((wsockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't create the Clamd socket.\n");
+	close(sockd);
+	return 0;
+     }
+
+     server.sin_family = AF_INET;
+     server.sin_port = htons (port);
+     peer_size = sizeof (peer);
+
+     if (getpeername(sockd, (struct sockaddr *) &peer, (socklen_t *) &peer_size) < 0) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't get socket peer name.\n");
+	close(sockd);
+	return 0;
+     }
+     switch (peer.sin_family) {
+	case AF_UNIX:
+	server.sin_addr.s_addr = inet_addr ("127.0.0.1");
+	break;
+	case AF_INET:
+	server.sin_addr.s_addr = peer.sin_addr.s_addr;
+	break;
+	default:
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Unexpected socket type: %d.\n", peer.sin_family);
+	close(sockd);
+	return 0;
+     }
+
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Trying to connect to clamd [port: %d].\n", port);
+
+     if (connect (wsockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
+	close(wsockd);
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't connect to clamd [port: %d].\n", port);
+	return 0;
+     }
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Ok connected to clamd on port: %d.\n", port);
+
+     ci_debug_printf(1, "DEBUG: squidclamav_safebrowsing: Scanning url for Malware now\n");
+     strcpy(cbuff, "From test\n\n<a href=");
+     strcat(cbuff, url);
+     strcat(cbuff, ">squidclamav-safebrowsing-test</a>\n");
+     ret = write(wsockd, cbuff, strlen(cbuff) + 1);
+     if ( ret <= 0 ) {
+	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to clamd socket.\n");
+     } else {
+	ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: Write to socket\n");
+     }
+     memset(cbuff, 0, sizeof(cbuff));
+
+     /* close socket to clamd */
+     if (wsockd > -1) {
+        ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: End Clamd connection, attempting to read result.\n");
+	close(wsockd);
+     }
+
+     clbuf = (char *) malloc (sizeof (char) * SMALL_BUFF);
+     memset (clbuf, 0, sizeof(clbuf));
+     while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+	ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: received from Clamd: %s", clbuf);
+	if (strstr (clbuf, "FOUND\n")) {
+		chomp(clbuf);
+		if (logredir == 0)
+		   ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", clbuf);
+		if (logredir)
+		    ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", clbuf);
+		ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware found, ending download.\n");
+		return 1;
+	}
+	memset(clbuf, 0, sizeof(clbuf));
+     }
+     /* close second socket to clamd */
+     if (sockd > -1) {
+        ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Closing Clamd connection.\n");
+	close(sockd);
+     }
+
+     ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: No malware found.\n");
+
+     return 0;
+}
+
 
