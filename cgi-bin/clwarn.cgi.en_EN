@@ -8,7 +8,7 @@ my $VERSION = '6.8';
 my $cgi = new CGI;
 
 my $url = CGI::escapeHTML($cgi->param('url')) || '';
-my $virus = CGI::escapeHTML($cgi->param('virus')) || '';
+my $virus = CGI::escapeHTML($cgi->param('virus')) || CGI::escapeHTML($cgi->param('malware')) || '';
 my $source = CGI::escapeHTML($cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML($cgi->param('user')) || '';

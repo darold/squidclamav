@@ -135,7 +135,7 @@ int create_pipe(char *command);
 int dconnect (void);
 int connectINET(char *serverHost, uint16_t serverPort);
 char * replace(const char *s, const char *old, const char *new);
-int squidclamav_safebrowsing(char *url, char *tmpbuf);
+int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char *username);
 
 /* ----------------------------------------------------- */
 
@@ -411,22 +411,9 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      }
 
      if (safebrowsing == 1) {
-	char *tmpbuf = NULL;
-	if (squidclamav_safebrowsing(httpinf.url, tmpbuf) == 1) {
-		char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-		snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, httpinf.url, clientip, username, tmpbuf);
-		if (logredir == 0)
-		   ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Malware redirection: %s.\n", urlredir);
-		if (logredir)
-		    ci_debug_printf(0, "INFO squidclamav_check_preview_handler: Malware redirection: %s.\n", urlredir);
-		/* Create the redirection url to squid */
-		data->blocked = 1;
-		generate_redirect_page(urlredir, req, data);
-		xfree(urlredir);
-	        xfree(tmpbuf);
+	if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
 	        return CI_MOD_CONTINUE;
 	 }
-	 xfree(tmpbuf);
      }
      /* Get the content length header */
      content_length = ci_http_content_length(req);
@@ -1702,9 +1689,11 @@ replace(const char *s, const char *old, const char *new)
 }
 
 int
-squidclamav_safebrowsing(char *url, char *clbuf)
+squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char *username)
 {
+     av_req_data_t *data = ci_service_data(req);
      char cbuff[MAX_URL_SIZE+60];
+     char clbuf[SMALL_BUFF];
 
      ssize_t ret;
      int nbread = 0;
@@ -1805,18 +1794,21 @@ squidclamav_safebrowsing(char *url, char *clbuf)
         ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: End Clamd connection, attempting to read result.\n");
 	close(wsockd);
      }
-
-     clbuf = (char *) malloc (sizeof (char) * SMALL_BUFF);
      memset (clbuf, 0, sizeof(clbuf));
      while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
 	ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: received from Clamd: %s", clbuf);
 	if (strstr (clbuf, "FOUND\n")) {
+		char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
 		chomp(clbuf);
+		snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&malware=%s", redirect_url, url, clientip, username, clbuf);
 		if (logredir == 0)
-		   ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", clbuf);
+		   ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
 		if (logredir)
-		    ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", clbuf);
-		ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware found, ending download.\n");
+		    ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
+		/* Create the redirection url to squid */
+		data->blocked = 1;
+		generate_redirect_page(urlredir, req, data);
+		xfree(urlredir);
 		return 1;
 	}
 	memset(clbuf, 0, sizeof(clbuf));
