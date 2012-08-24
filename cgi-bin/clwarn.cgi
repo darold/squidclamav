@@ -38,14 +38,14 @@ print qq{
 	.visu {
 	border:1px solid #C0C0C0;
 	color:#FFFFFF;
-	position: relative;
-	min-width: 13em;
-	max-width: 52em;
-	margin: 4em auto;
-	border: 1px solid ThreeDShadow;
-	border-radius: 10px;
-	padding: 3em;
-	-moz-padding-start: 30px;
+	  position: relative;
+	  min-width: 13em;
+	  max-width: 52em;
+	  margin: 4em auto;
+	  border: 1px solid ThreeDShadow;
+	  border-radius: 10px;
+	  padding: 3em;
+	  -moz-padding-start: 30px;
 	background-color: #8b0000;
 }
 .visu h2, .visu h3, .visu h4 {
@@ -71,9 +71,9 @@ print qq{
 	<p>
 	Origin: $source / $user
 	<p>
-	</div>
 	<hr>
 	<font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
+	</div>
 };
 
 print $cgi->end_html();
