@@ -17,12 +17,12 @@ my $user = CGI::escapeHTML($cgi->param('user')) || '';
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Virus detected!";
 my $subtitle = 'Virus name';
 my $errorreturn = 'This file cannot be downloaded.';
-my $urlerror = 'contain a virus.';
+my $urlerror = 'contains a virus';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
-	$subtitle = 'Malware / Pishing type';
+	$subtitle = 'Malware / pishing type';
 	$urlerror = 'is listed as suspicious';
-	$errorreturn = 'This page can not be diplayed.';
+	$errorreturn = 'This page can not be diplayed';
 }
 
 # Remove clamd infos
@@ -32,9 +32,31 @@ $virus =~ s/ FOUND//;
 
 print $cgi->header();
 
-print $cgi->start_html(-title => $TITLE_VIRUS);
+print $cgi->start_html(-title => $TITLE_VIRUS, -bgcolor => "#353535");
 print qq{
-	<h2 style="color: #FF0000">$TITLE_VIRUS</h2>
+	<style type="text/css">
+	.visu {
+	border:1px solid #C0C0C0;
+	color:#FFFFFF;
+	position: relative;
+	min-width: 13em;
+	max-width: 52em;
+	margin: 4em auto;
+	border: 1px solid ThreeDShadow;
+	border-radius: 10px;
+	padding: 3em;
+	-moz-padding-start: 30px;
+	background-color: #8b0000;
+}
+.visu h2, .visu h3, .visu h4 {
+font-size:130%;
+font-family:"times new roman", times, serif;
+font-style:normal;
+font-weight:bolder;
+}
+</style>	
+	<div class="visu">
+	<h2>$TITLE_VIRUS</h2>
 	<hr>
 	<p>
 };
@@ -49,8 +71,9 @@ print qq{
 	<p>
 	Origin: $source / $user
 	<p>
+	</div>
 	<hr>
-	Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.
+	<font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
 };
 
 print $cgi->end_html();
