@@ -13,11 +13,15 @@ my $source = CGI::escapeHTML($cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML($cgi->param('user')) || '';
 
-my $TITLE_VIRUS = "SquidClamAv $VERSION: Virus detection";
-my $subtitle = 'contient le virus';
+my $TITLE_VIRUS = "SquidClamAv $VERSION: Virus detect&eacute!";
+my $subtitle = 'Nom du virus';
+my $errorreturn = 'Le fichier ne peut &ecirc;tre t&eacute;l&eacute;charg&eacute;.';
+my $urlerror = 'contient un virus';
 if ($virus =~ /Safebrowsing/) {
-	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
-	$subtitle = 'Safe Browsing message';
+	$TITLE_VIRUS = "SquidClamAv $VERSION: Page malveillante detect&eacute!";
+	$subtitle = 'Type de malware / pishing';
+	$urlerror = 'est signal&eacute;e comme &eacutetant une page malveillante';
+	$errorreturn = 'La page ne peut pas &ecirc;tre affich&eacute;e';
 }
 
 # Remove clamd infos
@@ -32,12 +36,12 @@ print qq{
 <p>
 };
 print qq{
-L'URL $url que vous avez demand&eacute;e<br>
+L'URL $url que vous avez demand&eacute;e $urlerror<br>
 $subtitle: $virus
 };
 print qq{
 <p>
-Le fichier ne peut &ecirc;tre t&eacute;l&eacute;charg&eacute;.
+$errorreturn
 <p>
 Origine: $source / $user
 <p>
