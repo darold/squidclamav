@@ -14,32 +14,63 @@ $source =~ s/\/-//;
 my $user = CGI::escapeHTML($cgi->param('user')) || '';
 
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um v&iacute;rus!";
-my $subtitle = 'est&aacute; infectada pelo v&iacute;rus';
+my $subtitle = 'nome do vírus';
+my $errorreturn = 'Este arquivo não pode ser baixado.';
+my $urlerror = 'contém um vírus';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
-	$subtitle = 'Safe Browsing message';
+	$subtitle = 'Malware / pishing type';
+	$urlerror = 'está listado como suspeito';
+	$errorreturn = 'Esta página não pode ser diplayed';
 }
+# Remove clamd infos
+$virus =~ s/stream: //;
+$virus =~ s/ FOUND//;
 
 print $cgi->header();
 
-print $cgi->start_html(-title => $TITLE_VIRUS);
+print $cgi->start_html(-title => $TITLE_VIRUS, -bgcolor => "#353535");
 print qq{
-<h2 style="color: #FF0000">$TITLE_VIRUS</h2>
-<hr>
-<p>
+        <style type="text/css">
+        .visu {
+        border:1px solid #C0C0C0;
+        color:#FFFFFF;
+          position: relative;
+          min-width: 13em;
+          max-width: 52em;
+          margin: 4em auto;
+          border: 1px solid ThreeDShadow;
+          border-radius: 10px;
+          padding: 3em;
+          -moz-padding-start: 30px;
+        background-color: #8b0000;
+}
+.visu h2, .visu h3, .visu h4 {
+	font-size:130%;
+	font-family:"times new roman", times, serif;
+	font-style:normal;
+	font-weight:bolder;
+}
+</style>
+        <div class="visu">
+        <h2>$TITLE_VIRUS</h2>
+        <hr>
+        <p>
 };
 print qq{
-A URL requisitada $url <br>
-$subtitle: $virus
+        A URL requisitada $url $urlerror<br>
+        $subtitle: $virus
 };
 
 print qq{
-<p>
-Esta URL n&atilde;o pode ser baixada por conter v&iacute;rus.
-<p>
-Origem: $source / $user
-<hr>
-Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.
+        <p>
+        $errorreturn
+        <p>
+        Origem: $source / $user
+        <p>
+        <hr>
+        <font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
+        </div>
 };
 
 print $cgi->end_html();

@@ -22,7 +22,7 @@ if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
 	$subtitle = 'Malware / pishing type';
 	$urlerror = 'is listed as suspicious';
-	$errorreturn = 'This page can not be diplayed';
+	$errorreturn = 'This page can not be displayed';
 }
 
 # Remove clamd infos
@@ -34,25 +34,25 @@ print $cgi->header();
 
 print $cgi->start_html(-title => $TITLE_VIRUS, -bgcolor => "#353535");
 print qq{
-	<style type="text/css">
-	.visu {
+<style type="text/css">
+.visu {
 	border:1px solid #C0C0C0;
 	color:#FFFFFF;
-	  position: relative;
-	  min-width: 13em;
-	  max-width: 52em;
-	  margin: 4em auto;
-	  border: 1px solid ThreeDShadow;
-	  border-radius: 10px;
-	  padding: 3em;
-	  -moz-padding-start: 30px;
+	position: relative;
+	min-width: 13em;
+	max-width: 52em;
+	margin: 4em auto;
+	border: 1px solid ThreeDShadow;
+	border-radius: 10px;
+	padding: 3em;
+	-moz-padding-start: 30px;
 	background-color: #8b0000;
 }
 .visu h2, .visu h3, .visu h4 {
-font-size:130%;
-font-family:"times new roman", times, serif;
-font-style:normal;
-font-weight:bolder;
+	font-size:130%;
+	font-family:"times new roman", times, serif;
+	font-style:normal;
+	font-weight:bolder;
 }
 </style>	
 	<div class="visu">
