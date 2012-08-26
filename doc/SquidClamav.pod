@@ -463,6 +463,23 @@ preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a DNS
 on your network. Disabling it will also speed up squidclamav.
 
+=back
+
+=head3 Safebrowsing
+
+ClamAV 0.95 introduced support for Google Safe Browsing database.  The database
+is packed inside a CVD file and distributed through our mirror network as
+safebrowsing.cvd. This feature is disabled by default on all clamav installations.
+
+In order to enable this feature, you must first add “SafeBrowsing Yes” to freshclam.conf.
+There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the
+database directory, ClamAV will enable safe browsing. To turn it off you need to update
+freshclam.conf and remove the safebrowsing files from the database directory before
+restarting clamd.
+
+Then to enable this feature into SquidClamav you have to enable the following
+configuration directive.
+
 =item safebrowsing
 
 Enable / Disable Clamav Safe Browsing feature. You mus have enabled the
@@ -517,22 +534,6 @@ content-length of the file is bigger than the defined value. By default there's
 no size limit.
 
 =back
-
-=head3 Safebrowsing
-
-ClamAV 0.95 introduced support for Google Safe Browsing database.
-The database is packed inside a CVD file and distributed through our mirror network as safebrowsing.cvd .
-This feature is disabled by default on all installations and should be enabled with extreme care.
-
-All signatures provided by Google Safe Browsing Database will be prefixed with the Safebrowsing tag. If ClamAV reports Safebrowsing.<something> FOUND, it means that the advisory was provided by Google and not by ClamAV Virus database.
-
-Please note that such reports do NOT necessarily mean that the data scanned contains some malware. You should treat such data as a potential risk, that is a suspicious source of malware.
-
-If you want to know more about the potentially dangerous data matched by the signature, you should visit http://www.antiphishing.org/ (for phishing warnings) or http://www.stopbadware.org/ (for malware warnings).
-
-In order to enable this feature, you must add “SafeBrowsing Yes” to freshclam.conf .
-There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the database directory, ClamAV will enable safe browsing. To turn it off you need to update freshclam.conf and remove the safebrowsing files from the database directory before restarting clamd. 
-
 
 =head2 Testing SquidClamav
 

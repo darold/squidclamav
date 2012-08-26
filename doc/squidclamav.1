@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2012-08-21" "perl v5.10.1" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2012-08-26" "perl v5.10.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -642,6 +642,22 @@ Enable / disable \s-1DNS\s0 lookup of client \s-1IP\s0 address. Default is enabl
 preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a \s-1DNS\s0
 on your network. Disabling it will also speed up squidclamav.
+.PP
+\fISafebrowsing\fR
+.IX Subsection "Safebrowsing"
+.PP
+ClamAV 0.95 introduced support for Google Safe Browsing database.  The database
+is packed inside a \s-1CVD\s0 file and distributed through our mirror network as
+safebrowsing.cvd. This feature is disabled by default on all clamav installations.
+.PP
+In order to enable this feature, you must first add a\*^XXSafeBrowsing Yesa\*^XX to freshclam.conf.
+There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the
+database directory, ClamAV will enable safe browsing. To turn it off you need to update
+freshclam.conf and remove the safebrowsing files from the database directory before
+restarting clamd.
+.PP
+Then to enable this feature into SquidClamav you have to enable the following
+configuration directive.
 .IP "safebrowsing" 4
 .IX Item "safebrowsing"
 Enable / Disable Clamav Safe Browsing feature. You mus have enabled the
@@ -692,22 +708,6 @@ allow your users to view streamed video instantly.
 As said above, the 'maxsize' directive allows you not to scan a file when the
 content-length of the file is bigger than the defined value. By default there's
 no size limit.
-.PP
-\fISafebrowsing\fR
-.IX Subsection "Safebrowsing"
-.PP
-ClamAV 0.95 introduced support for Google Safe Browsing database.
-The database is packed inside a \s-1CVD\s0 file and distributed through our mirror network as safebrowsing.cvd .
-This feature is disabled by default on all installations and should be enabled with extreme care.
-.PP
-All signatures provided by Google Safe Browsing Database will be prefixed with the Safebrowsing tag. If ClamAV reports Safebrowsing.<something> \s-1FOUND\s0, it means that the advisory was provided by Google and not by ClamAV Virus database.
-.PP
-Please note that such reports do \s-1NOT\s0 necessarily mean that the data scanned contains some malware. You should treat such data as a potential risk, that is a suspicious source of malware.
-.PP
-If you want to know more about the potentially dangerous data matched by the signature, you should visit http://www.antiphishing.org/ (for phishing warnings) or http://www.stopbadware.org/ (for malware warnings).
-.PP
-In order to enable this feature, you must add a\*^XXSafeBrowsing Yesa\*^XX to freshclam.conf .
-There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the database directory, ClamAV will enable safe browsing. To turn it off you need to update freshclam.conf and remove the safebrowsing files from the database directory before restarting clamd.
 .SS "Testing SquidClamav"
 .IX Subsection "Testing SquidClamav"
 As SquidClamav v6.0 is now a c\-icap service, it can no more be run at console
@@ -775,3 +775,9 @@ but \s-1WITHOUT\s0 \s-1ANY\s0 \s-1WARRANTY\s0; without even the implied warranty
 .PP
 You should have received a copy of the \s-1GNU\s0 General Public License
 along with this program.  If not, see < http://www.gnu.org/licenses/ >.
+.SH "POD ERRORS"
+.IX Header "POD ERRORS"
+Hey! \fBThe above document had some coding errors, which are explained below:\fR
+.IP "Around line 483:" 4
+.IX Item "Around line 483:"
+\&'=item' outside of any '=over'

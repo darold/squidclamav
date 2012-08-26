@@ -1,3 +1,13 @@
+2012-08-26 version 6.9
+
+	- Add 'safebrowsing' configuration directive to enable/disable
+	  Safe Browsing detection.
+	- Fix support to Clamav Google Safe Browsing that need a second
+	  query to clamd because the url need to be embeded in an email
+	  like content. Thanks to frOgz for the report.
+	- Documentation updated for safebrowsing and proxy configuration
+	  variables.
+
 2012-07-26 version 6.8
 
 	- Compatibility fix with new c-icap 0.2.1 release that prevent
