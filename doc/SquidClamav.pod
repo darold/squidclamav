@@ -480,6 +480,8 @@ restarting clamd.
 Then to enable this feature into SquidClamav you have to enable the following
 configuration directive.
 
+=over 4
+
 =item safebrowsing
 
 Enable / Disable Clamav Safe Browsing feature. You mus have enabled the

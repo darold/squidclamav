@@ -7,6 +7,8 @@
 	  like content. Thanks to frOgz for the report.
 	- Documentation updated for safebrowsing and proxy configuration
 	  variables.
+	- All redirect CGI scripts have been rewritten with some CSS and
+	  to better handle virus vs malware. Thanks to frOgz for the patches.
 
 2012-07-26 version 6.8
 
