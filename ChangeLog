@@ -9,6 +9,7 @@
 	  variables.
 	- All redirect CGI scripts have been rewritten with some CSS and
 	  to better handle virus vs malware. Thanks to frOgz for the patches.
+	- Tested SquidClamav with Squid 3.2 successfuly.
 
 2012-07-26 version 6.8
 
