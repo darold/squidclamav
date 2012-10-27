@@ -40,6 +40,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#define LBUFSIZ		32768
+
 /* Structure used to store information passed throught the module methods */
 typedef struct av_req_data{
      ci_simple_file_t *body;
@@ -139,6 +141,23 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char
 
 /* ----------------------------------------------------- */
 
+/* Sends bytes over a socket. Returns the number of bytes sent */
+int sendln(int asockd, const char *line, unsigned int len)
+{
+    int bytesent = 0;
+    while (len) {
+        int sent = send(asockd, line, len, 0);
+        if (sent <= 0) {
+            if(sent && errno == EINTR) continue;
+	    ci_debug_printf(0, "ERROR: Can't send to clamd: %s\n", strerror(errno));
+            return sent;
+        }
+        line += sent;
+        len -= sent;
+        bytesent += sent;
+    }
+    return bytesent;
+}
 
 int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
                            struct ci_server_conf *server_conf)
@@ -412,6 +431,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
 
      if (safebrowsing == 1) {
 	if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
+		ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Malware found stopping here.\n");
 	        return CI_MOD_CONTINUE;
 	 }
      }
@@ -420,7 +440,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len, 
      ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Length: %d\n", (int)content_length);
 
      if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
-	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: No antivir check, content-length upper than maxsize (%d > %d)\n", content_length, (int)maxsize);
+	ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
 	return CI_MOD_ALLOW204;
      }
 
@@ -496,7 +516,7 @@ int squidclamav_read_from_net(char *buf, int len, int iseof, ci_request_t * req)
 	data->no_more_scan = 1;
 	ci_req_unlock_data(req);
 	ci_simple_file_unlock_all(data->body);
-	ci_debug_printf(1, "DEBUG squidclamav_read_from_net: No more antivir check, downloaded stream is upper than maxsize (%d>%d)\n", data->body->bytes_in, (int)maxsize);
+	ci_debug_printf(1, "DEBUG squidclamav_read_from_net: No more antivir check, downloaded stream is upper than maxsize (%d>%d)\n", (int)data->body->bytes_in, (int)maxsize);
     } else if (SEND_PERCENT_BYTES && (START_SEND_AFTER < data->body->bytes_in)) {
 	ci_req_unlock_data(req);
 	allow_transfer = (SEND_PERCENT_BYTES * (data->body->endpos + len)) / 100;
@@ -565,14 +585,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
      ssize_t ret;
      int nbread = 0;
-     int loopw = 60;
-     uint16_t port;
-     struct sockaddr_in server;
-     struct sockaddr_in peer;
-     size_t peer_size;
-     char *pt = NULL;
      int sockd;
-     int wsockd; 
      unsigned long total_read;
 
      ci_debug_printf(2, "DEBUG squidclamav_end_of_data_handler: ending request data handler.\n");
@@ -598,69 +611,15 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't connect to Clamd daemon.\n");
 	goto done_allow204;
      }
-     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Sending STREAM command to clamd.\n");
+     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Sending zINSTREAM command to clamd.\n");
 
-     if (write(sockd, "STREAM", 6) <= 0) {
+     if (write(sockd, "zINSTREAM", 10) <= 0) {
 	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write to Clamd socket.\n");
 	close(sockd);
 	goto done_allow204;
      }
 
-     while (loopw > 0) {
-	memset (cbuff, 0, sizeof(cbuff));
-	ret = read (sockd, cbuff, MAX_URL_SIZE);
-	if ((ret > -1) && (pt = strstr (cbuff, "PORT"))) {
-	   pt += 5;
-	   sscanf(pt, "%d", (int *) &port);
-	   break;
-	}
-	loopw--;
-     }
-     if (loopw == 0) {
-	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Clamd daemon not ready for stream scanning.\n");
-	close(sockd);
-	goto done_allow204;
-     }
-
-     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Received port %d from clamd.\n", port);
-
-     /* connect to clamd given port */
-     if ((wsockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
-	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't create the Clamd socket.\n");
-	close(sockd);
-	goto done_allow204;
-     }
-
-     server.sin_family = AF_INET;
-     server.sin_port = htons (port);
-     peer_size = sizeof (peer);
-
-     if (getpeername(sockd, (struct sockaddr *) &peer, (socklen_t *) &peer_size) < 0) {
-	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't get socket peer name.\n");
-	close(sockd);
-	goto done_allow204;
-     }
-     switch (peer.sin_family) {
-	case AF_UNIX:
-	server.sin_addr.s_addr = inet_addr ("127.0.0.1");
-	break;
-	case AF_INET:
-	server.sin_addr.s_addr = peer.sin_addr.s_addr;
-	break;
-	default:
-	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Unexpected socket type: %d.\n", peer.sin_family);
-	close(sockd);
-	goto done_allow204;
-     }
-
-     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Trying to connect to clamd [port: %d].\n", port);
-
-     if (connect (wsockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
-	close(wsockd);
-	ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't connect to clamd [port: %d].\n", port);
-	goto done_allow204;
-     }
-     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Ok connected to clamd on port: %d.\n", port);
+     ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Ok connected to clamd.\n");
 
 /*-----------------------------------------------------*/
 
@@ -668,9 +627,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
      lseek(body->fd, 0, SEEK_SET);
      memset(cbuff, 0, sizeof(cbuff));
      total_read = 0;
-     while (data->virus == 0 && (nbread = read(body->fd, cbuff, MAX_URL_SIZE)) > 0) {
+     while (data->virus == 0 && (nbread = read(body->fd, cbuff, BUFSIZ)) > 0) {
+	    uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
+	    buf[0] = htonl(nbread);
+	    memcpy(&buf[1],(const char*) cbuff, nbread);
 	    total_read += nbread;
-	    ret = write(wsockd, cbuff, nbread);
+	    ret = sendln (sockd,(const char *) buf, nbread+sizeof(uint32_t));
 	    if ( (ret <= 0) && (total_read > 0) ) {
 		ci_debug_printf(3, "ERROR squidclamav_end_of_data_handler: Can't write to clamd socket (maybe we reach clamd StreamMaxLength, total read: %ld).\n", total_read);
 		break;
@@ -680,38 +642,41 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	    } else {
 		ci_debug_printf(3, "DEBUG squidclamav_end_of_data_handler: Write %d bytes on %d to socket\n", (int)ret, nbread);
 	    }
-
 	    memset(cbuff, 0, sizeof(cbuff));
-
      }
 
-     /* close socket to clamd */
-     if (wsockd > -1) {
-        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: End Clamd connection, attempting to read result.\n");
-	close(wsockd);
+     uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
+     *buf = 0;
+     ret = sendln (sockd,(const char *) buf, 4);
+     if (ret <= 0)
+     {
+       ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write zINSTREAM ending chars to clamd socket.\n");
+     } else {
+
+	     /* Reading clamd result */
+	     memset (clbuf, 0, sizeof(clbuf));
+	     while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+		ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: received from Clamd: %s\n", clbuf);
+		if (strstr (clbuf, "FOUND")) {
+		   data->virus = 1;
+		   if (!ci_req_sent_data(req)) {
+			chomp(clbuf);
+			char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
+			snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, data->url, data->clientip, data->user, clbuf);
+			if (logredir == 0)
+			   ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
+			if (logredir)
+			    ci_debug_printf(0, "INFO squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
+			generate_redirect_page(urlredir, req, data);
+			xfree(urlredir);
+		   }
+		   ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus found, ending download.\n");
+		   break;
+		}
+		memset(clbuf, 0, sizeof(clbuf));
+	     }
      }
 
-     memset (clbuf, 0, sizeof(clbuf));
-     while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
-	ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: received from Clamd: %s", clbuf);
-	if (strstr (clbuf, "FOUND\n")) {
-	   data->virus = 1;
-	   if (!ci_req_sent_data(req)) {
-		chomp(clbuf);
-		char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-		snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, data->url, data->clientip, data->user, clbuf);
-		if (logredir == 0)
-		   ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
-		if (logredir)
-		    ci_debug_printf(0, "INFO squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
-		generate_redirect_page(urlredir, req, data);
-		xfree(urlredir);
-	   }
-	   ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus found, ending download.\n");
-	   break;
-	}
-	memset(clbuf, 0, sizeof(clbuf));
-     }
      /* close second socket to clamd */
      if (sockd > -1) {
         ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Closing Clamd connection.\n");
@@ -1697,14 +1662,7 @@ squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char *us
 
      ssize_t ret;
      int nbread = 0;
-     int loopw = 60;
-     uint16_t port;
-     struct sockaddr_in server;
-     struct sockaddr_in peer;
-     size_t peer_size;
-     char *pt = NULL;
      int sockd;
-     int wsockd; 
 
      ci_debug_printf(2, "DEBUG squidclamav_safebrowsing: looking for Clamav SafeBrowsing check.\n");
 
@@ -1713,107 +1671,60 @@ squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char *us
 	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't connect to Clamd daemon.\n");
 	return 0;
      }
-     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Sending STREAM command to clamd.\n");
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Sending zINSTREAM command to clamd.\n");
 
-     if (write(sockd, "STREAM", 6) <= 0) {
+     if (write(sockd, "zINSTREAM", 10) <= 0) {
 	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to Clamd socket.\n");
 	close(sockd);
 	return 0;
      }
 
-     while (loopw > 0) {
-	memset (cbuff, 0, sizeof(cbuff));
-	ret = read (sockd, cbuff, MAX_URL_SIZE);
-	if ((ret > -1) && (pt = strstr (cbuff, "PORT"))) {
-	   pt += 5;
-	   sscanf(pt, "%d", (int *) &port);
-	   break;
-	}
-	loopw--;
-     }
-     if (loopw == 0) {
-	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Clamd daemon not ready for stream scanning.\n");
-	close(sockd);
-	return 0;
-     }
-
-     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Received port %d from clamd.\n", port);
-
-     /* connect to clamd given port */
-     if ((wsockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
-	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't create the Clamd socket.\n");
-	close(sockd);
-	return 0;
-     }
-
-     server.sin_family = AF_INET;
-     server.sin_port = htons (port);
-     peer_size = sizeof (peer);
-
-     if (getpeername(sockd, (struct sockaddr *) &peer, (socklen_t *) &peer_size) < 0) {
-	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't get socket peer name.\n");
-	close(sockd);
-	return 0;
-     }
-     switch (peer.sin_family) {
-	case AF_UNIX:
-	server.sin_addr.s_addr = inet_addr ("127.0.0.1");
-	break;
-	case AF_INET:
-	server.sin_addr.s_addr = peer.sin_addr.s_addr;
-	break;
-	default:
-	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Unexpected socket type: %d.\n", peer.sin_family);
-	close(sockd);
-	return 0;
-     }
-
-     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Trying to connect to clamd [port: %d].\n", port);
-
-     if (connect (wsockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
-	close(wsockd);
-	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't connect to clamd [port: %d].\n", port);
-	return 0;
-     }
-     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Ok connected to clamd on port: %d.\n", port);
+     ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Ok connected to clamd socket.\n");
 
      ci_debug_printf(1, "DEBUG: squidclamav_safebrowsing: Scanning url for Malware now\n");
+     uint32_t buf[BUFSIZ/sizeof(uint32_t)];
      strcpy(cbuff, "From test\n\n<a href=");
      strcat(cbuff, url);
      strcat(cbuff, ">squidclamav-safebrowsing-test</a>\n");
-     ret = write(wsockd, cbuff, strlen(cbuff) + 1);
+     size_t sfsize = 0;
+     sfsize = strlen(cbuff);
+     buf[0] = htonl(sfsize);
+     memcpy(&buf[1],(const char*) cbuff, sfsize);
+     ci_debug_printf(3, "DEBUG: squidclamav_safebrowsing: sending %s\n", cbuff);
+     ret = sendln (sockd,(const char *) buf, sfsize+sizeof(uint32_t));
      if ( ret <= 0 ) {
 	ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to clamd socket.\n");
      } else {
-	ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: Write to socket\n");
+	     ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: Write to socket\n");
+	     memset(cbuff, 0, sizeof(cbuff));
+	     *buf = 0;
+	     ret = sendln (sockd,(const char *) buf, 4);
+	     if (ret <= 0)
+	     {
+		ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write INSTREAM ending chars to clamd socket.\n");
+	     } else {
+		     memset (clbuf, 0, sizeof(clbuf));
+		     while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+			ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: received from Clamd: %s\n", clbuf);
+			if (strstr (clbuf, "FOUND")) {
+				char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
+				chomp(clbuf);
+				snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&malware=%s", redirect_url, url, clientip, username, clbuf);
+				if (logredir == 0)
+				   ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
+				if (logredir)
+				    ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
+				/* Create the redirection url to squid */
+				data->blocked = 1;
+				generate_redirect_page(urlredir, req, data);
+				xfree(urlredir);
+				return 1;
+			}
+			memset(clbuf, 0, sizeof(clbuf));
+		     }
+		}
      }
-     memset(cbuff, 0, sizeof(cbuff));
-
      /* close socket to clamd */
-     if (wsockd > -1) {
-        ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: End Clamd connection, attempting to read result.\n");
-	close(wsockd);
-     }
-     memset (clbuf, 0, sizeof(clbuf));
-     while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
-	ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: received from Clamd: %s", clbuf);
-	if (strstr (clbuf, "FOUND\n")) {
-		char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-		chomp(clbuf);
-		snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&malware=%s", redirect_url, url, clientip, username, clbuf);
-		if (logredir == 0)
-		   ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
-		if (logredir)
-		    ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
-		/* Create the redirection url to squid */
-		data->blocked = 1;
-		generate_redirect_page(urlredir, req, data);
-		xfree(urlredir);
-		return 1;
-	}
-	memset(clbuf, 0, sizeof(clbuf));
-     }
-     /* close second socket to clamd */
      if (sockd > -1) {
         ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Closing Clamd connection.\n");
 	close(sockd);

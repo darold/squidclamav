@@ -1,11 +1,11 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([SquidClamav], [6.9], [http://squidclamav.darold.net/], [squidclamav])
+AC_INIT([SquidClamav], [6.10], [http://squidclamav.darold.net/], [squidclamav])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/squidclamav.c])
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(squidclamav, 6.9)
+AM_INIT_AUTOMAKE(squidclamav, 6.10)
 AC_CONFIG_FILES([Makefile])
 AC_PREFIX_DEFAULT(/usr/local)
 
@@ -13,6 +13,7 @@ AC_PREFIX_DEFAULT(/usr/local)
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_DISABLE_STATIC
+AC_DISABLE_SHARED
 AC_LIBTOOL_DLOPEN
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
@@ -20,7 +21,6 @@ AC_SUBST(LIBTOOL_DEPS)
 AC_LANG_C
 AC_PROG_CXX
 AC_CANONICAL_HOST
-AC_DISABLE_SHARED
 AC_PROG_LIBTOOL
 AC_LTDL_DLLIB
 AC_PROG_RANLIB
