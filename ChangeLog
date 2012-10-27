@@ -1,3 +1,9 @@
+2012-10-27 version 6.10
+
+        - Replace clamd STREAM by zINSTREAM protocol as clamav have removed
+          the obsolete STREAM protocol in release 0.97.4. Thanks to Vasan and
+          Raja Lakshmi for the report.
+
 2012-08-26 version 6.9
 
 	- Add 'safebrowsing' configuration directive to enable/disable
