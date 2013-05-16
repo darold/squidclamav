@@ -258,10 +258,7 @@ void squidclamav_close_service()
 
 void *squidclamav_init_request_data(ci_request_t * req)
 {
-    int preview_size;
     av_req_data_t *data;
-
-    preview_size = ci_req_preview_size(req);
 
     debugs(1, "DEBUG initializing request data handler.\n");
 
