@@ -341,8 +341,8 @@ CONFIGURATION
     slow down everything.
 
    Redirection
-    When a virus is detected SquidClamav needs to redirect the client to a
-    warning page. The SquidClamav distribution contains a set of Perl CGI
+    When a virus is detected SquidClamav will attempt to redirect the client to
+    a warning page. The SquidClamav distribution contains a set of Perl CGI
     scripts with different languages that you can use. To specify this
     redirection you have to use the 'redirect' directive as following:
 
@@ -364,7 +364,17 @@ CONFIGURATION
             logredir 1
 
     By default it is disabled as you can also log this information with the
-    cgi-script or send an email.
+    cgi-script or send an email. If it is disabled, SquidClamav will attempt to
+    load a template up from disk and send this back to the user. By default
+    this template is found at the following path, but is
+    dependant on TemplateDir in c-icap.conf.
+
+            /usr/share/c_icap/templates/squidclamav/en/MALWARE_FOUND
+
+    Available format tokens are all of those available to the LogFormat
+    directive of c-icap, plus an additional token:
+
+            %mn - formatted name of the malware, as given by ClamAV.
 
    Chained Url Checker
     This directive is preserved for backward compatibility but you must
