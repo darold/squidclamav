@@ -110,7 +110,7 @@ int load_patterns(void);
 
 
 // compatibility with folks that don't have __FUNCTION__, e.g. solaris
-#ifndef __FUNCTION__
+#if defined(__SUNPRO_CC) && !defined(__FUNCTION__)
     #ifdef __func__
         #define __FUNCTION__ __func__
     #else
