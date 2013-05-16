@@ -28,7 +28,6 @@ void xstrncpy(char *, const char *, size_t);
 void chomp(char *);
 int isPathExists(const char *);
 int isPathSecure(const char *);
-void xfree(void *);
 size_t strlcat(char *dst, const char *src, size_t siz);
 size_t xstrnlen(const char *s, size_t n);
 char** split( char* str, const char* delim);

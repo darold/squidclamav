@@ -398,7 +398,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
         rbuff = replace(httpinf.url, "%", "%25");
         fprintf(sgfpw,"%s %s %s %s\n",rbuff,clientip,username,httpinf.method);
         fflush(sgfpw);
-        xfree(rbuff);
+        free(rbuff);
         /* the chained redirector must return empty line if ok or the redirection url */
         chain_ret = (char *)malloc(sizeof(char)*MAX_URL_SIZE);
         if (chain_ret != NULL) {
@@ -410,11 +410,11 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
                 /* Create the redirection url to squid */
                 data->blocked = 1;
                 generate_redirect_page(strtok(chain_ret, " "), req, data);
-                xfree(chain_ret);
+                free(chain_ret);
                 chain_ret = NULL;
                 return CI_MOD_CONTINUE;
             }
-            xfree(chain_ret);
+            free(chain_ret);
             chain_ret = NULL;
         }
     }
@@ -671,7 +671,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     if (logredir)
                         ci_debug_printf(0, "INFO squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
                     generate_redirect_page(urlredir, req, data);
-                    xfree(urlredir);
+                    free(urlredir);
                 }
                 ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus found, ending download.\n");
                 break;
@@ -780,16 +780,6 @@ int isPathSecure(const char *path)
     return 0;
 }
 
-/*
- *  xfree() - same as free(3).  Will not call free(3) if s == NULL.
- */
-void xfree(void *s)
-{
-    if (s != NULL)
-        free(s);
-    s = NULL;
-}
-
 /* Remove spaces and tabs from beginning and end of a string */
 void trim(char *str)
 {
@@ -886,37 +876,37 @@ int isIpAddress(char *src_addr)
 
     /* make sure we have numbers and dots only! */
     if(strspn(s, "0123456789.") != strlen(s)) {
-        xfree(s);
+        free(s);
         return 1;
     }
 
     /* split up each number from string */
     ptr = strtok(s, ".");
     if(ptr == NULL) {
-        xfree(s);
+        free(s);
         return 1;
     }
     address = atoi(ptr);
     if(address < 0 || address > 255) {
-        xfree(s);
-        xfree(ptr);
+        free(s);
+        free(ptr);
         return 1;
     }
 
     for(i = 2; i < 4; i++) {
         ptr = strtok(NULL, ".");
         if (ptr == NULL) {
-            xfree(s);
+            free(s);
             return 1;
         }
         address = atoi(ptr);
         if (address < 0 || address > 255) {
-            xfree(ptr);
-            xfree(s);
+            free(ptr);
+            free(s);
             return 1;
         }
     }
-    xfree(s);
+    free(s);
 
     return 0;
 }
@@ -1019,12 +1009,12 @@ int load_patterns()
         chomp(buf);
         /* add to regex patterns array */
         if (add_pattern(buf) == 0) {
-            xfree(buf);
+            free(buf);
             fclose(fp);
             return 0;
         }
     }
-    xfree(buf);
+    free(buf);
     if (redirect_url == NULL) {
         ci_debug_printf(0, "FATAL load_patterns: No redirection URL set, going to BRIDGE mode\n");
         return 0;
@@ -1101,8 +1091,8 @@ int add_pattern(char *s)
 
     if (stored < 2) {
         ci_debug_printf(0, "FATAL add_patterns: Bad configuration line for [%s]\n", s);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 0;
     }
     /* remove extra space or tabulation */
@@ -1113,14 +1103,14 @@ int add_pattern(char *s)
         redirect_url = (char *) malloc (sizeof (char) * LOW_BUFF);
         if(redirect_url == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         } else {
             xstrncpy(redirect_url, first, LOW_BUFF);
         }
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1129,8 +1119,8 @@ int add_pattern(char *s)
         squidguard = (char *) malloc (sizeof (char) * LOW_BUFF);
         if(squidguard == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         } else {
             if (isPathExists(first) == 0) {
@@ -1140,40 +1130,40 @@ int add_pattern(char *s)
                 squidguard = NULL;
             }
         }
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
     if(strcmp(type, "debug") == 0) {
         if (debug == 0)
             debug = atoi(first);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
     if(strcmp(type, "logredir") == 0) {
         if (logredir == 0)
             logredir = atoi(first);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
     if(strcmp(type, "dnslookup") == 0) {
         if (dnslookup == 1)
             dnslookup = atoi(first);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
     if(strcmp(type, "safebrowsing") == 0) {
         if (safebrowsing == 0)
             safebrowsing = atoi(first);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1181,15 +1171,15 @@ int add_pattern(char *s)
         timeout = atoi(first);
         if (timeout > 10)
             timeout = 10;
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
     if(strcmp(type, "stat") == 0) {
         statit = atoi(first);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1197,14 +1187,14 @@ int add_pattern(char *s)
         clamd_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
         if (clamd_ip == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         } else {
             xstrncpy(clamd_ip, first, SMALL_CHAR);
         }
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1212,14 +1202,14 @@ int add_pattern(char *s)
         clamd_port = (char *) malloc (sizeof (char) * LOW_CHAR);
         if(clamd_port == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         } else {
             xstrncpy(clamd_port, first, LOW_CHAR);
         }
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1227,14 +1217,14 @@ int add_pattern(char *s)
         clamd_local = (char *) malloc (sizeof (char) * LOW_BUFF);
         if(clamd_local == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         } else {
             xstrncpy(clamd_local, first, LOW_BUFF);
         }
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1248,8 +1238,8 @@ int add_pattern(char *s)
             maxsize = maxsize * 1024 * 1024;
         else if (*end == 'g' || *end == 'G')
             maxsize = maxsize * 1024 * 1024 * 1024;
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1271,8 +1261,8 @@ int add_pattern(char *s)
         currItem.type = TRUSTCLIENT;
     } else if ( (strcmp(type, "squid_ip") != 0) && (strcmp(type, "squid_port") != 0) && (strcmp(type, "maxredir") != 0) && (strcmp(type, "useragent") != 0) && (strcmp(type, "trust_cache") != 0) ) {
         fprintf(stderr, "WARNING: Bad configuration keyword: %s\n", s);
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 1;
     }
 
@@ -1283,8 +1273,8 @@ int add_pattern(char *s)
     currItem.pattern = malloc(sizeof(char)*(strlen(first)+1));
     if (currItem.pattern == NULL) {
         fprintf(stderr, "unable to allocate new pattern in add_to_patterns()\n");
-        xfree(type);
-        xfree(first);
+        free(type);
+        free(first);
         return 0;
     }
     strncpy(currItem.pattern, first, strlen(first) + 1);
@@ -1293,13 +1283,13 @@ int add_pattern(char *s)
     } else {
         if (growPatternArray(currItem) < 0) {
             fprintf(stderr, "unable to allocate new pattern in add_to_patterns()\n");
-            xfree(type);
-            xfree(first);
+            free(type);
+            free(first);
             return 0;
         }
     }
-    xfree(type);
-    xfree(first);
+    free(type);
+    free(first);
     return 1;
 }
 
@@ -1371,16 +1361,16 @@ char *http_content_type(ci_request_t * req)
 
 void free_global()
 {
-    xfree(clamd_local);
-    xfree(clamd_ip);
-    xfree(clamd_port);
-    xfree(clamd_curr_ip);
-    xfree(redirect_url);
+    free(clamd_local);
+    free(clamd_ip);
+    free(clamd_port);
+    free(clamd_curr_ip);
+    free(redirect_url);
     if (patterns != NULL) {
         while (pattc > 0) {
             pattc--;
             regfree(&patterns[pattc].regexv);
-            xfree(patterns[pattc].pattern);
+            free(patterns[pattc].pattern);
         }
         free(patterns);
         patterns = NULL;
@@ -1389,7 +1379,7 @@ void free_global()
 
 void free_pipe()
 {
-    xfree(squidguard);
+    free(squidguard);
     if (sgfpw) fclose(sgfpw);
     if (sgfpr) fclose(sgfpr);
 }
@@ -1542,13 +1532,13 @@ int dconnect()
                 ci_debug_printf(1, "DEBUG dconnect: Connected to Clamd (%s:%s)\n", ptr,clamd_port);
                 /* Store last working clamd */
                 xstrncpy(clamd_curr_ip, ptr, LOW_CHAR);
-                xfree(s);
+                free(s);
                 break;
             }
             ptr = strtok(NULL, ",");
         }
         return asockd;
-        xfree(s);
+        free(s);
     }
     return 0;
 }
@@ -1701,7 +1691,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
                     /* Create the redirection url to squid */
                     data->blocked = 1;
                     generate_redirect_page(urlredir, req, data);
-                    xfree(urlredir);
+                    free(urlredir);
                     return 1;
                 }
                 memset(clbuf, 0, sizeof(clbuf));
