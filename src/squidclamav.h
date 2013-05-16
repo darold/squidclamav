@@ -109,4 +109,17 @@ int client_pattern_compare(char *, char *);
 int load_patterns(void);
 
 
+// compatibility with folks that don't have __FUNCTION__, e.g. solaris
+#ifndef __FUNCTION__
+    #ifdef __func__
+        #define __FUNCTION__ __func__
+    #else
+        #define __FUNCTION__ ""
+    #endif
+#endif
+
+#define debugs(LEVEL, ARGS...) \
+    ci_debug_printf(LEVEL, "%s(%d) %s: ", __FILE__, __LINE__, __FUNCTION__); \
+    ci_debug_printf(LEVEL, ARGS)
+
 #endif

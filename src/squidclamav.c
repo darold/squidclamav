@@ -149,7 +149,7 @@ int sendln(int asockd, const char *line, unsigned int len)
         int sent = send(asockd, line, len, 0);
         if (sent <= 0) {
             if(sent && errno == EINTR) continue;
-            ci_debug_printf(0, "ERROR: Can't send to clamd: %s\n", strerror(errno));
+            debugs(0, "ERROR: Can't send to clamd: %s\n", strerror(errno));
             return sent;
         }
         line += sent;
@@ -164,7 +164,7 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
 {
     unsigned int xops;
 
-    ci_debug_printf(1, "DEBUG squidclamav_init_service: Going to initialize squidclamav\n");
+    debugs(1, "DEBUG Going to initialize squidclamav\n");
 
     squidclamav_xdata = srv_xdata;
     set_istag(squidclamav_xdata);
@@ -180,7 +180,7 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     AVREQDATA_POOL = ci_object_pool_register("av_req_data_t", sizeof(av_req_data_t));
 
     if(AVREQDATA_POOL < 0) {
-        ci_debug_printf(0, "FATAL squidclamav_init_service: error registering object_pool av_req_data_t\n");
+        debugs(0, "FATAL error registering object_pool av_req_data_t\n");
         return CI_ERROR;
     }
 
@@ -203,7 +203,7 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
 
 void cfgreload_command(char *name, int type, char **argv)
 {
-    ci_debug_printf(1, "DEBUG cfgreload_command: reload configuration command received\n");
+    debugs(1, "DEBUG reload configuration command received\n");
 
     free_global();
     free_pipe();
@@ -219,12 +219,12 @@ void cfgreload_command(char *name, int type, char **argv)
     clamd_curr_ip = (char *) malloc (sizeof (char) * 128);
     memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
     if (load_patterns() == 0)
-        ci_debug_printf(0, "FATAL cfgreload_command: reload configuration command failed!\n");
+        debugs(0, "FATAL reload configuration command failed!\n");
     if (squidclamav_xdata)
         set_istag(squidclamav_xdata);
 
     if (squidguard != NULL) {
-        ci_debug_printf(1, "DEBUG cfgreload_command: reopening pipe to %s\n", squidguard);
+        debugs(1, "DEBUG reopening pipe to %s\n", squidguard);
         create_pipe(squidguard);
     }
 
@@ -235,11 +235,11 @@ int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata,
 {
 
     if (squidguard == NULL) {
-        ci_debug_printf(1, "DEBUG squidclamav_post_init_service: squidguard not defined\n");
+        debugs(1, "DEBUG squidguard not defined\n");
         return CI_OK;
     }
 
-    ci_debug_printf(1, "DEBUG squidclamav_post_init_service: opening pipe to %s\n", squidguard);
+    debugs(1, "DEBUG opening pipe to %s\n", squidguard);
 
     if (create_pipe(squidguard) == 1) {
         return CI_ERROR;
@@ -250,7 +250,7 @@ int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata,
 
 void squidclamav_close_service()
 {
-    ci_debug_printf(1, "DEBUG squidclamav_close_service: clean all memory!\n");
+    debugs(1, "DEBUG clean all memory!\n");
     free_global();
     free_pipe();
     ci_object_pool_unregister(AVREQDATA_POOL);
@@ -263,10 +263,10 @@ void *squidclamav_init_request_data(ci_request_t * req)
 
     preview_size = ci_req_preview_size(req);
 
-    ci_debug_printf(1, "DEBUG squidclamav_init_request_data: initializing request data handler.\n");
+    debugs(1, "DEBUG initializing request data handler.\n");
 
     if (!(data = ci_object_pool_alloc(AVREQDATA_POOL))) {
-        ci_debug_printf(0, "FATAL squidclamav_init_request_data: Error allocation memory for service data!!!");
+        debugs(0, "FATAL Error allocation memory for service data!!!");
         return NULL;
     }
     data->body = NULL;
@@ -284,7 +284,7 @@ void squidclamav_release_request_data(void *data)
 {
 
     if (data) {
-        ci_debug_printf(1, "DEBUG squidclamav_release_request_data: Releasing request data.\n");
+        debugs(1, "DEBUG Releasing request data.\n");
 
         if (((av_req_data_t *) data)->body) {
             ci_simple_file_destroy(((av_req_data_t *) data)->body);
@@ -319,23 +319,23 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     char *ret = NULL;
     int chkipdone = 0;
 
-    ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: processing preview header.\n");
+    debugs(1, "DEBUG processing preview header.\n");
 
     if (preview_data_len)
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: preview data size is %d\n", preview_data_len);
+        debugs(1, "DEBUG preview data size is %d\n", preview_data_len);
 
     /* Extract the HTTP header from the request */
     if ((req_header = ci_http_request_headers(req)) == NULL) {
-        ci_debug_printf(0, "ERROR squidclamav_check_preview_handler: bad http header, aborting.\n");
+        debugs(0, "ERROR bad http header, aborting.\n");
         return CI_ERROR;
     }
 
     /* Get the Authenticated user */
     if ((username = ci_headers_value(req->request_header, "X-Authenticated-User")) != NULL) {
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: X-Authenticated-User: %s\n", username);
+        debugs(2, "DEBUG X-Authenticated-User: %s\n", username);
         /* if a TRUSTUSER match => no squidguard and no virus scan */
         if (simple_pattern_compare(username, TRUSTUSER) == 1) {
-            ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+            debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
             return CI_MOD_ALLOW204;
         }
     } else {
@@ -346,7 +346,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
     /* Check client Ip against SquidClamav trustclient */
     if ((clientip = ci_headers_value(req->request_header, "X-Client-IP")) != NULL) {
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: X-Client-IP: %s\n", clientip);
+        debugs(2, "DEBUG X-Client-IP: %s\n", clientip);
         ip = inet_addr(clientip);
         chkipdone = 0;
         if (dnslookup == 1) {
@@ -354,7 +354,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
                 if (clientname->h_name != NULL) {
                     /* if a TRUSTCLIENT match => no squidguard and no virus scan */
                     if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-                        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+                        debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
                         return CI_MOD_ALLOW204;
                     }
                     chkipdone = 1;
@@ -364,7 +364,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
         if (chkipdone == 0) {
             /* if a TRUSTCLIENT match => no squidguard and no virus scan */
             if (client_pattern_compare(clientip, NULL) > 0) {
-                ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+                debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
                 return CI_MOD_ALLOW204;
             }
         }
@@ -377,14 +377,14 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     /* Get the requested URL */
     if (!extract_http_info(req, req_header, &httpinf)) {
         /* Something wrong in the header or unknow method */
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: bad http header, aborting.\n");
+        debugs(1, "DEBUG bad http header, aborting.\n");
         return CI_MOD_ALLOW204;
     }
-    ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: URL requested: %s\n", httpinf.url);
+    debugs(2, "DEBUG URL requested: %s\n", httpinf.url);
 
     /* Check the URL against SquidClamav Whitelist */
     if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No squidguard and antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+        debugs(1, "DEBUG No squidguard and antivir check (WHITELIST match) for url: %s\n", httpinf.url);
         return CI_MOD_ALLOW204;
     }
 
@@ -392,8 +392,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     /* Check URL header against squidGuard */
     if (usepipe == 1) {
         char *rbuff = NULL;
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Sending request to chained program: %s\n", squidguard);
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Request: %s %s %s %s\n", httpinf.url,clientip,username,httpinf.method);
+        debugs(2, "DEBUG Sending request to chained program: %s\n", squidguard);
+        debugs(2, "DEBUG Request: %s %s %s %s\n", httpinf.url,clientip,username,httpinf.method);
         /* escaping escaped character to prevent unescaping by squidguard */
         rbuff = replace(httpinf.url, "%", "%25");
         fprintf(sgfpw,"%s %s %s %s\n",rbuff,clientip,username,httpinf.method);
@@ -404,9 +404,9 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
         if (chain_ret != NULL) {
             ret = fgets(chain_ret,MAX_URL_SIZE,sgfpr);
             if ((ret != NULL) && (strlen(chain_ret) > 1)) {
-                ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Chained program redirection received: %s\n", chain_ret);
+                debugs(1, "DEBUG Chained program redirection received: %s\n", chain_ret);
                 if (logredir)
-                    ci_debug_printf(0, "INFO Chained program redirection received: %s\n", chain_ret);
+                    debugs(0, "INFO Chained program redirection received: %s\n", chain_ret);
                 /* Create the redirection url to squid */
                 data->blocked = 1;
                 generate_redirect_page(strtok(chain_ret, " "), req, data);
@@ -421,49 +421,49 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
     /* CONNECT method (https) can not be scanned so abort */
     if (strcmp(httpinf.method, "CONNECT") == 0) {
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: method %s can't be scanned.\n", httpinf.method);
+        debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
         return CI_MOD_ALLOW204;
     }
 
     /* Check the URL against SquidClamav abort */
     if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No antivir check (ABORT match) for url: %s\n", httpinf.url);
+        debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
         return CI_MOD_ALLOW204;
     }
 
     if (safebrowsing == 1) {
         if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
-            ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: Malware found stopping here.\n");
+            debugs(1, "DEBUG Malware found stopping here.\n");
             return CI_MOD_CONTINUE;
         }
     }
     /* Get the content length header */
     content_length = ci_http_content_length(req);
-    ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Length: %d\n", (int)content_length);
+    debugs(2, "DEBUG Content-Length: %d\n", (int)content_length);
 
     if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
+        debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
         return CI_MOD_ALLOW204;
     }
 
     /* Get the content type header */
     if ((content_type = http_content_type(req)) != NULL) {
-        ci_debug_printf(2, "DEBUG squidclamav_check_preview_handler: Content-Type: %s\n", content_type);
+        debugs(2, "DEBUG Content-Type: %s\n", content_type);
         /* Check the Content-Type against SquidClamav abortcontent */
         if (simple_pattern_compare(content_type, ABORTCONTENT)) {
-            ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
+            debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
             return CI_MOD_ALLOW204;
         }
     }
 
     /* No data, so nothing to scan */
     if (!data || !ci_req_hasbody(req)) {
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: No body data, allow 204\n");
+        debugs(1, "DEBUG No body data, allow 204\n");
         return CI_MOD_ALLOW204;
     }
 
     if (preview_data_len == 0) {
-        ci_debug_printf(1, "DEBUG squidclamav_check_preview_handler: can not begin to scan url: No preview data.\n");
+        debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
         return CI_MOD_ALLOW204;
     }
 
@@ -479,7 +479,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
         data->clientip = ci_buffer_alloc(strlen(clientip)+1);
         strcpy(data->clientip, clientip);
     } else {
-        ci_debug_printf(0, "ERROR squidclamav_check_preview_handler: clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
+        debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
         data->clientip = NULL;
     }
 
@@ -518,7 +518,7 @@ int squidclamav_read_from_net(char *buf, int len, int iseof, ci_request_t * req)
         data->no_more_scan = 1;
         ci_req_unlock_data(req);
         ci_simple_file_unlock_all(data->body);
-        ci_debug_printf(1, "DEBUG squidclamav_read_from_net: No more antivir check, downloaded stream is upper than maxsize (%d>%d)\n", (int)data->body->bytes_in, (int)maxsize);
+        debugs(1, "DEBUG No more antivir check, downloaded stream is upper than maxsize (%d>%d)\n", (int)data->body->bytes_in, (int)maxsize);
     } else if (SEND_PERCENT_BYTES && (START_SEND_AFTER < data->body->bytes_in)) {
         ci_req_unlock_data(req);
         allow_transfer = (SEND_PERCENT_BYTES * (data->body->endpos + len)) / 100;
@@ -537,11 +537,11 @@ int squidclamav_write_to_net(char *buf, int len, ci_request_t * req)
         return CI_ERROR;
 
     if (data->blocked == 1 && data->error_page == 0) {
-        ci_debug_printf(2, "DEBUG squidclamav_write_to_net: ending here, content was blocked\n");
+        debugs(2, "DEBUG ending here, content was blocked\n");
         return CI_EOF;
     }
     if (data->virus == 1 && data->error_page == 0) {
-        ci_debug_printf(2, "DEBUG squidclamav_write_to_net: ending here, virus was found\n");
+        debugs(2, "DEBUG ending here, virus was found\n");
         return CI_EOF;
     }
 
@@ -591,42 +591,42 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     int sockd;
     unsigned long total_read;
 
-    ci_debug_printf(2, "DEBUG squidclamav_end_of_data_handler: ending request data handler.\n");
+    debugs(2, "DEBUG ending request data handler.\n");
 
     /* Nothing more to scan */
     if (!data || !data->body)
         return CI_MOD_DONE;
 
     if (data->blocked == 1) {
-        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: blocked content, sending redirection header + error page.\n");
+        debugs(1, "DEBUG blocked content, sending redirection header + error page.\n");
         return CI_MOD_DONE;
     }
 
     body = data->body;
     if (data->no_more_scan == 1) {
-        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: no more data to scan, sending content.\n");
+        debugs(1, "DEBUG no more data to scan, sending content.\n");
         ci_simple_file_unlock_all(body);
         return CI_MOD_DONE;
     }
 
     /* SCAN DATA HERE */
     if ((sockd = dconnect ()) < 0) {
-        ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't connect to Clamd daemon.\n");
+        debugs(0, "ERROR Can't connect to Clamd daemon.\n");
         goto done_allow204;
     }
-    ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Sending zINSTREAM command to clamd.\n");
+    debugs(1, "DEBUG Sending zINSTREAM command to clamd.\n");
 
     if (write(sockd, "zINSTREAM", 10) <= 0) {
-        ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write to Clamd socket.\n");
+        debugs(0, "ERROR Can't write to Clamd socket.\n");
         close(sockd);
         goto done_allow204;
     }
 
-    ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Ok connected to clamd.\n");
+    debugs(1, "DEBUG Ok connected to clamd.\n");
 
     /*-----------------------------------------------------*/
 
-    ci_debug_printf(1, "DEBUG: squidclamav_end_of_data_handler: Scanning data now\n");
+    debugs(1, "DEBUG: Scanning data now\n");
     lseek(body->fd, 0, SEEK_SET);
     memset(cbuff, 0, sizeof(cbuff));
     total_read = 0;
@@ -637,13 +637,13 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         total_read += nbread;
         ret = sendln (sockd,(const char *) buf, nbread+sizeof(uint32_t));
         if ( (ret <= 0) && (total_read > 0) ) {
-            ci_debug_printf(3, "ERROR squidclamav_end_of_data_handler: Can't write to clamd socket (maybe we reach clamd StreamMaxLength, total read: %ld).\n", total_read);
+            debugs(3, "ERROR Can't write to clamd socket (maybe we reach clamd StreamMaxLength, total read: %ld).\n", total_read);
             break;
         } else if ( ret <= 0 ) {
-            ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write to clamd socket.\n");
+            debugs(0, "ERROR Can't write to clamd socket.\n");
             break;
         } else {
-            ci_debug_printf(3, "DEBUG squidclamav_end_of_data_handler: Write %d bytes on %d to socket\n", (int)ret, nbread);
+            debugs(3, "DEBUG Write %d bytes on %d to socket\n", (int)ret, nbread);
         }
         memset(cbuff, 0, sizeof(cbuff));
     }
@@ -653,13 +653,13 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     ret = sendln (sockd,(const char *) buf, 4);
     if (ret <= 0)
     {
-        ci_debug_printf(0, "ERROR squidclamav_end_of_data_handler: Can't write zINSTREAM ending chars to clamd socket.\n");
+        debugs(0, "ERROR Can't write zINSTREAM ending chars to clamd socket.\n");
     } else {
 
         /* Reading clamd result */
         memset (clbuf, 0, sizeof(clbuf));
         while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
-            ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: received from Clamd: %s\n", clbuf);
+            debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
                 if (!ci_req_sent_data(req)) {
@@ -667,13 +667,13 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
                     snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, data->url, data->clientip, data->user, clbuf);
                     if (logredir == 0)
-                        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
+                        debugs(1, "DEBUG Virus redirection: %s.\n", urlredir);
                     if (logredir)
-                        ci_debug_printf(0, "INFO squidclamav_end_of_data_handler: Virus redirection: %s.\n", urlredir);
+                        debugs(0, "INFO Virus redirection: %s.\n", urlredir);
                     generate_redirect_page(urlredir, req, data);
                     free(urlredir);
                 }
-                ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus found, ending download.\n");
+                debugs(1, "DEBUG Virus found, ending download.\n");
                 break;
             }
             memset(clbuf, 0, sizeof(clbuf));
@@ -682,22 +682,22 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     /* close second socket to clamd */
     if (sockd > -1) {
-        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Closing Clamd connection.\n");
+        debugs(1, "DEBUG Closing Clamd connection.\n");
         close(sockd);
     }
 
     if (data->virus) {
-        ci_debug_printf(1, "DEBUG squidclamav_end_of_data_handler: Virus found, sending redirection header + error page.\n");
+        debugs(1, "DEBUG Virus found, sending redirection header + error page.\n");
         return CI_MOD_DONE;
     }
 
 done_allow204:
     if (!ci_req_sent_data(req) && ci_req_allow204(req)) {
-        ci_debug_printf(2, "DEBUG squidclamav_end_of_data_handler: Responding with allow 204\n");
+        debugs(2, "DEBUG Responding with allow 204\n");
         return CI_MOD_ALLOW204;
     }
 
-    ci_debug_printf(3, "DEBUG squidclamav_end_of_data_handler: unlocking data to be sent.\n");
+    debugs(3, "DEBUG unlocking data to be sent.\n");
     ci_simple_file_unlock_all(body);
 
     return CI_MOD_DONE;
@@ -711,7 +711,7 @@ void set_istag(ci_service_xdata_t * srv_xdata)
     snprintf(istag, SERVICE_ISTAG_SIZE, "-%d-%s-%d%d",1, "squidclamav", 1, 0);
     istag[SERVICE_ISTAG_SIZE] = '\0';
     ci_service_set_istag(srv_xdata, istag);
-    ci_debug_printf(2, "DEBUG set_istag: setting istag to %s\n", istag);
+    debugs(2, "DEBUG setting istag to %s\n", istag);
 }
 
 /* util.c */
@@ -923,25 +923,25 @@ int simple_pattern_compare(char *str, const int type)
                 /* return 1 if string matches whitelist pattern */
                 case WHITELIST:
                     if (debug > 0)
-                        ci_debug_printf(2, "DEBUG simple_pattern_compare: whitelist (%s) matched: %s\n", patterns[i].pattern, str);
+                        debugs(2, "DEBUG whitelist (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches abort pattern */
                 case ABORT:
                     if (debug > 0)
-                        ci_debug_printf(2, "DEBUG simple_pattern_compare: abort (%s) matched: %s\n", patterns[i].pattern, str);
+                        debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches trustuser pattern */
                 case TRUSTUSER:
                     if (debug > 0)
-                        ci_debug_printf(2, "DEBUG simple_pattern_compare: trustuser (%s) matched: %s\n", patterns[i].pattern, str);
+                        debugs(2, "DEBUG trustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches abortcontent pattern */
                 case ABORTCONTENT:
                     if (debug > 0)
-                        ci_debug_printf(2, "DEBUG simple_pattern_compare: abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
+                        debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                 default:
-                    ci_debug_printf(0, "ERROR simple_pattern_compare: unknown pattern match type: %s\n", str);
+                    debugs(0, "ERROR unknown pattern match type: %s\n", str);
                     return -1;
             }
         }
@@ -962,13 +962,13 @@ int client_pattern_compare(char *ip, char *name)
             /* return 1 if string matches ip TRUSTCLIENT pattern */
             if (regexec(&patterns[i].regexv, ip, 0, 0, 0) == 0) {
                 if (debug != 0)
-                    ci_debug_printf(2, "DEBUG client_pattern_compare: trustclient (%s) matched: %s\n", patterns[i].pattern, ip);
+                    debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, ip);
                 return 1;
                 /* Look at client name pattern matching */
                 /* return 2 if string matches fqdn TRUSTCLIENT pattern */
             } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0)) {
                 if (debug != 0)
-                    ci_debug_printf(2, "DEBUG client_pattern_compare: trustclient (%s) matched: %s\n", patterns[i].pattern, name);
+                    debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
         }
@@ -989,18 +989,18 @@ int load_patterns()
     if (isPathExists(CONFIG_FILE) == 0) {
         fp = fopen(CONFIG_FILE, "rt");
         if (debug > 0)
-            ci_debug_printf(0, "LOG load_patterns: Reading configuration from %s\n", CONFIG_FILE);
+            debugs(0, "LOG Reading configuration from %s\n", CONFIG_FILE);
     }
 
 
     if (fp == NULL) {
-        ci_debug_printf(0, "FATAL load_patterns: unable to open configuration file: %s\n", CONFIG_FILE);
+        debugs(0, "FATAL unable to open configuration file: %s\n", CONFIG_FILE);
         return 0;
     }
 
     buf = (char *)malloc(sizeof(char)*LOW_BUFF*2);
     if (buf == NULL) {
-        ci_debug_printf(0, "FATAL load_patterns: unable to allocate memory in load_patterns()\n");
+        debugs(0, "FATAL unable to allocate memory in load_patterns()\n");
         fclose(fp);
         return 0;
     }
@@ -1016,21 +1016,21 @@ int load_patterns()
     }
     free(buf);
     if (redirect_url == NULL) {
-        ci_debug_printf(0, "FATAL load_patterns: No redirection URL set, going to BRIDGE mode\n");
+        debugs(0, "FATAL No redirection URL set, going to BRIDGE mode\n");
         return 0;
     }
     if (squidguard != NULL) {
-        ci_debug_printf(0, "LOG load_patterns: Chaining with %s\n", squidguard);
+        debugs(0, "LOG Chaining with %s\n", squidguard);
     }
     if (fclose(fp) != 0)
-        ci_debug_printf(0, "ERROR load_patterns: Can't close configuration file\n");
+        debugs(0, "ERROR Can't close configuration file\n");
 
     /* Set default values */
     if (clamd_local == NULL) {
         if (clamd_ip == NULL) {
             clamd_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
             if(clamd_ip == NULL) {
-                ci_debug_printf(0, "FATAL load_patterns: unable to allocate memory in load_patterns()\n");
+                debugs(0, "FATAL unable to allocate memory in load_patterns()\n");
                 return 0;
             }
             xstrncpy(clamd_ip, CLAMD_SERVER, SMALL_CHAR);
@@ -1039,7 +1039,7 @@ int load_patterns()
         if (clamd_port == NULL) {
             clamd_port = (char *) malloc (sizeof (char) * LOW_CHAR);
             if(clamd_port == NULL) {
-                ci_debug_printf(0, "FATAL load_patterns: unable to allocate memory in load_patterns()\n");
+                debugs(0, "FATAL unable to allocate memory in load_patterns()\n");
                 return 0;
             }
             xstrncpy(clamd_port, CLAMD_PORT, LOW_CHAR);
@@ -1090,7 +1090,7 @@ int add_pattern(char *s)
     stored = sscanf(s, "%31s %255[^#]", type, first);
 
     if (stored < 2) {
-        ci_debug_printf(0, "FATAL add_patterns: Bad configuration line for [%s]\n", s);
+        debugs(0, "FATAL Bad configuration line for [%s]\n", s);
         free(type);
         free(first);
         return 0;
@@ -1126,7 +1126,7 @@ int add_pattern(char *s)
             if (isPathExists(first) == 0) {
                 xstrncpy(squidguard, first, LOW_BUFF);
             } else {
-                ci_debug_printf(0, "LOG add_patterns: Wrong path to SquidGuard, disabling.\n");
+                debugs(0, "LOG Wrong path to SquidGuard, disabling.\n");
                 squidguard = NULL;
             }
         }
@@ -1279,7 +1279,7 @@ int add_pattern(char *s)
     }
     strncpy(currItem.pattern, first, strlen(first) + 1);
     if ((stored = regcomp(&currItem.regexv, currItem.pattern, currItem.flag)) != 0) {
-        ci_debug_printf(0, "ERROR add_pattern: Invalid regex pattern: %s\n", currItem.pattern);
+        debugs(0, "ERROR Invalid regex pattern: %s\n", currItem.pattern);
     } else {
         if (growPatternArray(currItem) < 0) {
             fprintf(stderr, "unable to allocate new pattern in add_to_patterns()\n");
@@ -1319,7 +1319,7 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
         i++;
     }
     httpinf->method[i] = '\0';
-    ci_debug_printf(3, "DEBUG extract_http_info: method %s\n", httpinf->method);
+    debugs(3, "DEBUG method %s\n", httpinf->method);
 
     /* Extract the URL part of the header */
     while (*str == ' ') str++;
@@ -1330,7 +1330,7 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
         str++;
     }
     httpinf->url[i] = '\0';
-    ci_debug_printf(3, "DEBUG extract_http_info: url %s\n", httpinf->url);
+    debugs(3, "DEBUG url %s\n", httpinf->url);
     if (*str != ' ') {
         return 0;
     }
@@ -1410,12 +1410,12 @@ void generate_redirect_page(char * redirect, ci_request_t * req,
     else
         ci_http_response_create(req, 1, 1);
 
-    ci_debug_printf(2, "DEBUG generate_redirect_page: creating redirection page\n");
+    debugs(2, "DEBUG creating redirection page\n");
 
     snprintf(buf, MAX_URL_SIZE, "Location: %s", redirect);
     /*strcat(buf, ";");*/
 
-    ci_debug_printf(3, "DEBUG generate_redirect_page: %s\n", buf);
+    debugs(3, "DEBUG %s\n", buf);
 
     ci_http_response_add_header(req, "HTTP/1.0 301 Moved Permanently");
     ci_http_response_add_header(req, buf);
@@ -1432,7 +1432,7 @@ void generate_redirect_page(char * redirect, ci_request_t * req,
         ci_membuf_write(error_page, (char *) redirect, strlen(redirect), 0);
         ci_membuf_write(error_page, (char *) blocked_footer_message, strlen(blocked_footer_message), 1);
     }
-    ci_debug_printf(3, "DEBUG generate_redirect_page: done\n");
+    debugs(3, "DEBUG done\n");
 
 }
 
@@ -1442,16 +1442,16 @@ int create_pipe(char *command)
     int pipe1[2];
     int pipe2[2];
 
-    ci_debug_printf(1, "DEBUG create_pipe: Open pipe to squidGuard %s!\n", command);
+    debugs(1, "DEBUG Open pipe to squidGuard %s!\n", command);
 
     if (command != NULL) {
         if ( pipe(pipe1) < 0  ||  pipe(pipe2) < 0 ) {
-            ci_debug_printf(0, "ERROR create_pipe: unable to open pipe, disabling call to %s.\n", command);
+            debugs(0, "ERROR unable to open pipe, disabling call to %s.\n", command);
             perror("pipe");
             usepipe = 0;
         } else {
             if ( (pid = fork()) == -1) {
-                ci_debug_printf(0, "ERROR create_pipe: unable to fork, disabling call to %s.\n", command);
+                debugs(0, "ERROR unable to fork, disabling call to %s.\n", command);
                 usepipe = 0;
             } else {
                 if(pid == 0) {
@@ -1468,18 +1468,18 @@ int create_pipe(char *command)
                     close(pipe1[0]);
                     sgfpw = fdopen(pipe1[1], "w");
                     if (!sgfpw) {
-                        ci_debug_printf(0, "ERROR create_pipe: unable to fopen command's child stdin, disabling it.\n");
+                        debugs(0, "ERROR unable to fopen command's child stdin, disabling it.\n");
                         usepipe = 0;
                     } else {
                         /* make pipe line buffered */
                         if (setvbuf (sgfpw, (char *)NULL, _IOLBF, 0)  != 0)
-                            ci_debug_printf(1, "DEBUG create_pipe: unable to line buffering pipe.\n");
+                            debugs(1, "DEBUG unable to line buffering pipe.\n");
                         sgfpr = fdopen(pipe2[0], "r");
                         if(!sgfpr) {
-                            ci_debug_printf(0, "ERROR create_pipe: unable to fopen command's child stdout, disabling it.\n");
+                            debugs(0, "ERROR unable to fopen command's child stdout, disabling it.\n");
                             usepipe = 0;
                         } else {
-                            ci_debug_printf(1, "DEBUG create_pipe: bidirectional pipe to %s childs ready...\n", command);
+                            debugs(1, "DEBUG bidirectional pipe to %s childs ready...\n", command);
                             usepipe = 1;
                         }
                     }
@@ -1498,17 +1498,17 @@ int dconnect()
 
     memset ((char *) &userver, 0, sizeof (userver));
 
-    ci_debug_printf(1, "dconnect: entering.\n");
+    debugs(1, "entering.\n");
     if (clamd_local != NULL) {
         userver.sun_family = AF_UNIX;
         xstrncpy (userver.sun_path, clamd_local, sizeof(userver.sun_path));
         if ((asockd = socket (AF_UNIX, SOCK_STREAM, 0)) < 0) {
-            ci_debug_printf(0, "ERROR dconnect: Can't bind local socket on %s.\n", clamd_local);
+            debugs(0, "ERROR Can't bind local socket on %s.\n", clamd_local);
             return -1;
         }
         if (connect (asockd, (struct sockaddr *) &userver, sizeof (struct sockaddr_un)) < 0) {
             close (asockd);
-            ci_debug_printf(0, "ERROR dconnect: Can't connect to clamd on local socket %s.\n", clamd_local);
+            debugs(0, "ERROR Can't connect to clamd on local socket %s.\n", clamd_local);
             return -1;
         }
         return asockd;
@@ -1517,7 +1517,7 @@ int dconnect()
         if (clamd_curr_ip[0] != 0) {
             asockd = connectINET(clamd_curr_ip, atoi(clamd_port));
             if ( asockd != -1 ) {
-                ci_debug_printf(1, "DEBUG dconnect: Connected to Clamd (%s:%s)\n", clamd_curr_ip,clamd_port);
+                debugs(1, "DEBUG Connected to Clamd (%s:%s)\n", clamd_curr_ip,clamd_port);
                 return asockd;
             }
         }
@@ -1529,7 +1529,7 @@ int dconnect()
         while (ptr != NULL) {
             asockd = connectINET(ptr, atoi(clamd_port));
             if ( asockd != -1 ) {
-                ci_debug_printf(1, "DEBUG dconnect: Connected to Clamd (%s:%s)\n", ptr,clamd_port);
+                debugs(1, "DEBUG Connected to Clamd (%s:%s)\n", ptr,clamd_port);
                 /* Store last working clamd */
                 xstrncpy(clamd_curr_ip, ptr, LOW_CHAR);
                 free(s);
@@ -1559,7 +1559,7 @@ int connectINET(char *serverHost, uint16_t serverPort)
     memset ((char *) &server, 0, sizeof (server));
     server.sin_addr.s_addr = inet_addr(serverHost);
     if ((asockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
-        ci_debug_printf(0, "ERROR connectINET: Can't create a socket.\n");
+        debugs(0, "ERROR Can't create a socket.\n");
         return -1;
     }
 
@@ -1569,7 +1569,7 @@ int connectINET(char *serverHost, uint16_t serverPort)
     if ((he = gethostbyname(serverHost)) == 0)
     {
         close(asockd);
-        ci_debug_printf(0, "ERROR connectINET: Can't lookup hostname of %s\n", serverHost);
+        debugs(0, "ERROR Can't lookup hostname of %s\n", serverHost);
         return -1;
     }
     server.sin_addr = *(struct in_addr *) he->h_addr_list[0];
@@ -1578,14 +1578,14 @@ int connectINET(char *serverHost, uint16_t serverPort)
 
     if (connect (asockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
         close (asockd);
-        ci_debug_printf(0, "ERROR connectINET: Can't connect on %s:%d.\n", serverHost,serverPort);
+        debugs(0, "ERROR Can't connect on %s:%d.\n", serverHost,serverPort);
         return -1;
     }
     int err = errno;
     alarm(0);
     if (err == EINTR) {
         close(asockd);
-        ci_debug_printf(0, "ERROR connectINET: Timeout connecting to clamd on %s:%d.\n", serverHost,serverPort);
+        debugs(0, "ERROR Timeout connecting to clamd on %s:%d.\n", serverHost,serverPort);
     }
 
     return asockd;
@@ -1638,24 +1638,24 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
     int nbread = 0;
     int sockd;
 
-    ci_debug_printf(2, "DEBUG squidclamav_safebrowsing: looking for Clamav SafeBrowsing check.\n");
+    debugs(2, "DEBUG looking for Clamav SafeBrowsing check.\n");
 
     /* SCAN DATA HERE */
     if ((sockd = dconnect ()) < 0) {
-        ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't connect to Clamd daemon.\n");
+        debugs(0, "ERROR Can't connect to Clamd daemon.\n");
         return 0;
     }
-    ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Sending zINSTREAM command to clamd.\n");
+    debugs(1, "DEBUG Sending zINSTREAM command to clamd.\n");
 
     if (write(sockd, "zINSTREAM", 10) <= 0) {
-        ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to Clamd socket.\n");
+        debugs(0, "ERROR Can't write to Clamd socket.\n");
         close(sockd);
         return 0;
     }
 
-    ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Ok connected to clamd socket.\n");
+    debugs(1, "DEBUG Ok connected to clamd socket.\n");
 
-    ci_debug_printf(1, "DEBUG: squidclamav_safebrowsing: Scanning url for Malware now\n");
+    debugs(1, "DEBUG: Scanning url for Malware now\n");
     uint32_t buf[BUFSIZ/sizeof(uint32_t)];
     strcpy(cbuff, "From test\n\n<a href=");
     strcat(cbuff, url);
@@ -1664,30 +1664,30 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
     sfsize = strlen(cbuff);
     buf[0] = htonl(sfsize);
     memcpy(&buf[1],(const char*) cbuff, sfsize);
-    ci_debug_printf(3, "DEBUG: squidclamav_safebrowsing: sending %s\n", cbuff);
+    debugs(3, "DEBUG: sending %s\n", cbuff);
     ret = sendln (sockd,(const char *) buf, sfsize+sizeof(uint32_t));
     if ( ret <= 0 ) {
-        ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write to clamd socket.\n");
+        debugs(0, "ERROR Can't write to clamd socket.\n");
     } else {
-        ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: Write to socket\n");
+        debugs(3, "DEBUG Write to socket\n");
         memset(cbuff, 0, sizeof(cbuff));
         *buf = 0;
         ret = sendln (sockd,(const char *) buf, 4);
         if (ret <= 0)
         {
-            ci_debug_printf(0, "ERROR squidclamav_safebrowsing: Can't write INSTREAM ending chars to clamd socket.\n");
+            debugs(0, "ERROR Can't write INSTREAM ending chars to clamd socket.\n");
         } else {
             memset (clbuf, 0, sizeof(clbuf));
             while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
-                ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: received from Clamd: %s\n", clbuf);
+                debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
                     char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
                     chomp(clbuf);
                     snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&malware=%s", redirect_url, url, clientip, username, clbuf);
                     if (logredir == 0)
-                        ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
+                        debugs(1, "DEBUG Malware redirection: %s.\n", urlredir);
                     if (logredir)
-                        ci_debug_printf(0, "INFO squidclamav_safebrowsing: Malware redirection: %s.\n", urlredir);
+                        debugs(0, "INFO Malware redirection: %s.\n", urlredir);
                     /* Create the redirection url to squid */
                     data->blocked = 1;
                     generate_redirect_page(urlredir, req, data);
@@ -1700,11 +1700,11 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
     }
     /* close socket to clamd */
     if (sockd > -1) {
-        ci_debug_printf(1, "DEBUG squidclamav_safebrowsing: Closing Clamd connection.\n");
+        debugs(1, "DEBUG Closing Clamd connection.\n");
         close(sockd);
     }
 
-    ci_debug_printf(3, "DEBUG squidclamav_safebrowsing: No malware found.\n");
+    debugs(3, "DEBUG No malware found.\n");
 
     return 0;
 }
