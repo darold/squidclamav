@@ -37,6 +37,7 @@
 #include "ci_threads.h"
 #include "mem.h"
 #include "commands.h"
+#include "txtTemplate.h"
 #include <errno.h>
 #include <signal.h>
 
@@ -53,6 +54,7 @@ typedef struct av_req_data{
     char *url;
     char *user;
     char *clientip;
+    char *malware;
 } av_req_data_t;
 
 static int SEND_PERCENT_BYTES = 0;
@@ -132,6 +134,8 @@ char *http_content_type(ci_request_t *);
 void free_global ();
 void free_pipe ();
 void generate_redirect_page(char *, ci_request_t *, av_req_data_t *);
+void generate_response_page(ci_request_t *, av_req_data_t *);
+void generate_template_page(ci_request_t *, av_req_data_t *);
 void cfgreload_command(char *, int, char **);
 int create_pipe(char *command);
 int dconnect (void);
@@ -595,7 +599,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         return CI_MOD_DONE;
 
     if (data->blocked == 1) {
-        debugs(1, "DEBUG blocked content, sending redirection header + error page.\n");
+        debugs(1, "DEBUG blocked content, sending redirection header / error page.\n");
         return CI_MOD_DONE;
     }
 
@@ -659,16 +663,9 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
+                data->malware = clbuf;
                 if (!ci_req_sent_data(req)) {
-                    chomp(clbuf);
-                    char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-                    snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s", redirect_url, data->url, data->clientip, data->user, clbuf);
-                    if (logredir == 0)
-                        debugs(1, "DEBUG Virus redirection: %s.\n", urlredir);
-                    if (logredir)
-                        debugs(0, "INFO Virus redirection: %s.\n", urlredir);
-                    generate_redirect_page(urlredir, req, data);
-                    free(urlredir);
+                    generate_response_page(req, data);
                 }
                 debugs(1, "DEBUG Virus found, ending download.\n");
                 break;
@@ -684,7 +681,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     }
 
     if (data->virus) {
-        debugs(1, "DEBUG Virus found, sending redirection header + error page.\n");
+        debugs(1, "DEBUG Virus found, sending redirection header / error page.\n");
         return CI_MOD_DONE;
     }
 
@@ -1012,10 +1009,6 @@ int load_patterns()
         }
     }
     free(buf);
-    if (redirect_url == NULL) {
-        debugs(0, "FATAL No redirection URL set, going to BRIDGE mode\n");
-        return 0;
-    }
     if (squidguard != NULL) {
         debugs(0, "LOG Chaining with %s\n", squidguard);
     }
@@ -1393,6 +1386,57 @@ static const char *blocked_footer_message =
 "</body>\n"
 "</html>\n";
 
+void generate_response_page(ci_request_t *req, av_req_data_t *data)
+{
+    chomp(data->malware);
+
+    if (redirect_url != NULL) {
+        char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
+        snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s",
+                 redirect_url, data->url, data->clientip, data->user, data->malware);
+        if (logredir == 0)
+            debugs((logredir==0) ? 1 : 0, "Virus redirection: %s.\n", urlredir);
+        generate_redirect_page(urlredir, req, data);
+        free(urlredir);
+    } else {
+        generate_template_page(req, data);
+    }
+}
+
+int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
+{
+   av_req_data_t *data = ci_service_data(req);
+   char *malware = data->malware;
+   if (strncmp("stream: ", malware, strlen("stream: ")) == 0)
+       malware += 8;
+
+   memset(buf, '\0', len);
+   strncpy(buf, malware, strlen(malware) - strlen(" FOUND"));
+
+   return strlen(buf);
+}
+
+void generate_template_page(ci_request_t *req, av_req_data_t *data)
+{
+    char buf[LOW_CHAR];
+
+    ci_http_response_add_header(req, "HTTP/1.0 200 OK");
+    ci_http_response_add_header(req, "Server: C-ICAP");
+    ci_http_response_add_header(req, "Connection: close");
+    ci_http_response_add_header(req, "Content-Type: text/html");
+    data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
+    data->error_page->hasalldata = 1;
+
+    snprintf(buf, LOW_CHAR, "Content-Language: %s",
+             (char *)ci_membuf_attr_get(data->error_page, "lang"));
+    ci_http_response_add_header(req, buf);
+
+    ci_http_response_remove_header(req, "Content-Length");
+
+    snprintf(buf, LOW_CHAR, "Content-Length: %d", (int)strlen(data->error_page->buf));
+    ci_http_response_add_header(req, buf);
+}
+
 void generate_redirect_page(char * redirect, ci_request_t * req,
                             av_req_data_t * data)
 {
@@ -1418,7 +1462,6 @@ void generate_redirect_page(char * redirect, ci_request_t * req,
     ci_http_response_add_header(req, buf);
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
-    /*ci_http_response_add_header(req, "Content-Type: text/html;");*/
     ci_http_response_add_header(req, "Content-Type: text/html");
     ci_http_response_add_header(req, "Content-Language: en");
 
@@ -1678,17 +1721,9 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
             while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
                 debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
-                    char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-                    chomp(clbuf);
-                    snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&malware=%s", redirect_url, url, clientip, username, clbuf);
-                    if (logredir == 0)
-                        debugs(1, "DEBUG Malware redirection: %s.\n", urlredir);
-                    if (logredir)
-                        debugs(0, "INFO Malware redirection: %s.\n", urlredir);
-                    /* Create the redirection url to squid */
                     data->blocked = 1;
-                    generate_redirect_page(urlredir, req, data);
-                    free(urlredir);
+                    data->malware = clbuf;
+                    generate_response_page(req, data);
                     return 1;
                 }
                 memset(clbuf, 0, sizeof(clbuf));
