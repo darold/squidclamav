@@ -28,7 +28,6 @@ void xstrncpy(char *, const char *, size_t);
 void chomp(char *);
 int isPathExists(const char *);
 int isPathSecure(const char *);
-void xfree(void *);
 size_t strlcat(char *dst, const char *src, size_t siz);
 size_t xstrnlen(const char *s, size_t n);
 char** split( char* str, const char* delim);
@@ -69,12 +68,12 @@ extern char *strdup (char *s) /*@*/ ;
 #define MAX_LOGIN_SZ 128
 
 struct IN_BUFF {
-  char url[MAX_URL];
-  char src_address[1050];
-  char ident[MAX_LOGIN_SZ];
-  char method[LOW_CHAR];
-  char ipaddress[16];
-  char fqdn[1024];
+    char url[MAX_URL];
+    char src_address[1050];
+    char ident[MAX_LOGIN_SZ];
+    char method[LOW_CHAR];
+    char ipaddress[16];
+    char fqdn[1024];
 };
 
 #define WHITELIST    1
@@ -90,16 +89,16 @@ struct IN_BUFF {
 #define PATTERN_ARR_SIZE 32	/* Array of 32 patterns */
 
 struct IP {
-  short first;
-  short second;
-  short third;
+    short first;
+    short second;
+    short third;
 };
 
 typedef struct {
-  char *pattern;
-  int type;
-  int flag;
-  regex_t regexv;
+    char *pattern;
+    int type;
+    int flag;
+    regex_t regexv;
 } SCPattern;
 
 int add_pattern(char *s);
@@ -109,5 +108,18 @@ int simple_pattern_compare(char *, const int );
 int client_pattern_compare(char *, char *);
 int load_patterns(void);
 
+
+// compatibility with folks that don't have __FUNCTION__, e.g. solaris
+#if defined(__SUNPRO_CC) && !defined(__FUNCTION__)
+    #ifdef __func__
+        #define __FUNCTION__ __func__
+    #else
+        #define __FUNCTION__ ""
+    #endif
+#endif
+
+#define debugs(LEVEL, ARGS...) \
+    ci_debug_printf(LEVEL, "%s(%d) %s: ", __FILE__, __LINE__, __FUNCTION__); \
+    ci_debug_printf(LEVEL, ARGS)
 
 #endif
