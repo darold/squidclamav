@@ -1002,7 +1002,7 @@ int load_patterns()
         /* chop newline */
         chomp(buf);
         /* add to regex patterns array */
-        if (add_pattern(buf) == 0) {
+        if ( (strlen(buf) > 0) && (add_pattern(buf) == 0) ) {
             free(buf);
             fclose(fp);
             return 0;
