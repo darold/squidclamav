@@ -25,6 +25,14 @@
  * Thanks to him for his great work.
  */
 
+/*
+ Fix conflicting types for `strnstr' on freeBSD
+ between string.h and c_icap/util.h declaration
+ */
+#ifndef HAVE_STRNSTR
+#define HAVE_STRNSTR 1
+#endif
+
 #include "c-icap.h"
 #include "service.h"
 #include "header.h"
