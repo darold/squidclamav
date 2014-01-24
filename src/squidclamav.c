@@ -621,14 +621,14 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     /* SCAN DATA HERE */
     if ((sockd = dconnect ()) < 0) {
         debugs(0, "ERROR Can't connect to Clamd daemon.\n");
-        goto done_allow204;
+        return CI_MOD_ERROR;
     }
     debugs(1, "DEBUG Sending zINSTREAM command to clamd.\n");
 
     if (write(sockd, "zINSTREAM", 10) <= 0) {
         debugs(0, "ERROR Can't write to Clamd socket.\n");
         close(sockd);
-        goto done_allow204;
+        return CI_MOD_ERROR;
     }
 
     debugs(1, "DEBUG Ok connected to clamd.\n");
