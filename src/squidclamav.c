@@ -1428,18 +1428,25 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 {
     char buf[LOW_CHAR];
 
-    ci_http_response_add_header(req, "HTTP/1.0 200 OK");
+    ci_http_response_remove_header(req, "Cache-Control");
+    ci_http_response_remove_header(req, "Content-Disposition");
+    ci_http_response_remove_header(req, "Content-Type");
+    ci_http_response_remove_header(req, "Server");
+    ci_http_response_remove_header(req, "Connection");
+    ci_http_response_remove_header(req, "Content-Length");
+    ci_http_response_remove_header(req, "Content-Language");
+
+    ci_http_response_add_header(req, "HTTP/1.0 403 Forbidden");
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
     ci_http_response_add_header(req, "Content-Type: text/html");
+
     data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
     data->error_page->hasalldata = 1;
 
     snprintf(buf, LOW_CHAR, "Content-Language: %s",
              (char *)ci_membuf_attr_get(data->error_page, "lang"));
     ci_http_response_add_header(req, buf);
-
-    ci_http_response_remove_header(req, "Content-Length");
 
     snprintf(buf, LOW_CHAR, "Content-Length: %d", (int)strlen(data->error_page->buf));
     ci_http_response_add_header(req, buf);
