@@ -1,12 +1,19 @@
-EXTRA_DIST = squidclamav.conf
+
+CONFS = squidclamav.conf
+cicapdatadir=@DATADIR@
+CONFIGDIR = @CONFDIR@
 CFGINST = @CFGDIR@
+
+TMPLS = templates/en/VIRUS_FOUND templates/en/UNSAFE_BROWSING
 
 install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(CFGINST)
-	@if test -f "$(DESTDIR)$(CFGINST)/squidclamav.conf" ; then \
-		echo "$@ will not overwrite existing $(DESTDIR)$(CFGINST)/squidclamav.conf" ; \
-	else \
-		echo "$(INSTALL_DATA) $(srcdir)/squidclamav.conf $(DESTDIR)$(CFGINST)"; \
-		$(INSTALL_DATA) $(srcdir)/squidclamav.conf $(DESTDIR)$(CFGINST)/squidclamav.conf; \
-	fi
+	for f in $(CONFS); do \
+		$(INSTALL) $$f $(DESTDIR)$(CONFIGDIR)/$$f.default; \
+		if test ! -f $(DESTDIR)$(CONFIGDIR)/$$f; then $(INSTALL) $$f $(DESTDIR)$(CONFIGDIR)/$$f; fi \
+	done
+	$(mkinstalldirs) $(DESTDIR)$(cicapdatadir)/templates/squidclamav/en/
+	for f in $(TMPLS); do $(INSTALL) $$f $(DESTDIR)$(cicapdatadir)/templates/squidclamav/en/; done
+
+EXTRA_DIST = squidclamav.conf $(TMPLS)
 

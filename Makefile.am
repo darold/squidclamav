@@ -1,5 +1,9 @@
-SUBDIRS = src etc
+
+CONFIGDIR = @CONFDIR@
 cicapmoduledir=@MODSDIR@
+
+SUBDIRS = . src etc
+
 DISTCLEANFILES = stamp-h stamp-h[0-9]*
 EXTRA_DIST = \
 	ChangeLog \

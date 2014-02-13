@@ -8,10 +8,10 @@
 # automake installed, I mean GNU Autotools.
 #
 #-------------------------------------------------------------------------
-rm -rf  autoscan.log autom4te.cache config.h.in configure \
-	Makefile.in config/* config.status Makefile config.h stamp-h1 \
-	.deps config.log src/Makefile src/Makefile.in src/*.o libtool \
-	src/squidclamav src/.deps etc/Makefile etc/Makefile.in src/.libs/
+rm -rf *.log aclocal.m4 autoconf.h.in autom4te.cache compile stamp-* \
+	libtool etc/Makefile config.* configure depcomp etc/Makefile.in \
+	src/*.o .deps src/squidclamav src/.deps install-sh ltmain.sh \
+	Makefile.in Makefile missing src/Makefile src/Makefile.in src/.libs
 
 # Autotool versions preferred. To override either edit the script
 # to match the versions you want to use, or set the variables on
@@ -71,7 +71,7 @@ fixmakefiles() {
 }
 
 # Make sure config exists
-mkdir -p config
+#mkdir -p config
 
 # Adjust paths of required autool packages
 amver=`find_version automake ${amversions}`
@@ -80,16 +80,16 @@ acver=`find_version autoconf ${acversions}`
 # Bootstrap the autotool subsystems
 libtoolize --copy --force
 bootstrap aclocal$amver
+bootstrap autoconf$acver
 bootstrap autoheader$acver
 bootstrap automake$amver --foreign --add-missing --copy --force-missing
 fixmakefiles
-bootstrap autoconf$acver
 
 echo "Autotool bootstrapping complete."
 
-#aclocal \
+#libtoolize --copy --force \
+#&& aclocal \
+#&& autoconf \
 #&& autoheader \
 #&& automake --foreign --add-missing --copy --force-missing \
-#&& autoconf
-
 

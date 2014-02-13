@@ -138,18 +138,18 @@ struct http_info {
 };
 
 int extract_http_info(ci_request_t *, ci_headers_list_t *, struct http_info *);
-char *http_content_type(ci_request_t *);
+const char *http_content_type(ci_request_t *);
 void free_global ();
 void free_pipe ();
 void generate_redirect_page(char *, ci_request_t *, av_req_data_t *);
 void generate_response_page(ci_request_t *, av_req_data_t *);
 void generate_template_page(ci_request_t *, av_req_data_t *);
-void cfgreload_command(char *, int, char **);
+void cfgreload_command(const char *name, int type, const char **argv);
 int create_pipe(char *command);
 int dconnect (void);
 int connectINET(char *serverHost, uint16_t serverPort);
 char * replace(const char *s, const char *old, const char *new);
-int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip, char *username);
+int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip, const char *username);
 
 /* ----------------------------------------------------- */
 
@@ -213,7 +213,7 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     return CI_OK;
 }
 
-void cfgreload_command(char *name, int type, char **argv)
+void cfgreload_command(const char *name, int type, const char **argv)
 {
     debugs(1, "DEBUG reload configuration command received\n");
 
@@ -318,11 +318,11 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     ci_headers_list_t *req_header;
     struct http_info httpinf;
     av_req_data_t *data = ci_service_data(req);
-    char *clientip;
+    const char *clientip;
     struct hostent *clientname;
     unsigned long ip;
-    char *username;
-    char *content_type;
+    const char *username;
+    const char *content_type;
     ci_off_t content_length;
     char *chain_ret = NULL;
     char *ret = NULL;
@@ -350,7 +350,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     } else {
         /* set null client to - */
         username = (char *)malloc(sizeof(char)*2);
-        strcpy(username, "-");
+        strcpy((char *)username, "-");
     }
 
     /* Check client Ip against SquidClamav trustclient */
@@ -380,7 +380,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     } else {
         /* set null client to - */
         clientip = (char *)malloc(sizeof(char)*2);
-        strcpy(clientip, "-");
+        strcpy((char *)clientip, "-");
     }
 
     /* Get the requested URL */
@@ -570,21 +570,22 @@ int squidclamav_write_to_net(char *buf, int len, ci_request_t * req)
 int squidclamav_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
                    ci_request_t * req)
 {
-    int ret = CI_OK;
 
     if (rbuf && rlen) {
         *rlen = squidclamav_read_from_net(rbuf, *rlen, iseof, req);
         if (*rlen == CI_ERROR)
             return CI_ERROR;
         else if (*rlen < 0)
-            ret = CI_OK;
+            return CI_OK;
     } else if (iseof) {
         if (squidclamav_read_from_net(NULL, 0, iseof, req) == CI_ERROR)
             return CI_ERROR;
     }
+
     if (wbuf && wlen) {
         *wlen = squidclamav_write_to_net(wbuf, *wlen, req);
     }
+
     return CI_OK;
 }
 
@@ -693,7 +694,6 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         return CI_MOD_DONE;
     }
 
-done_allow204:
     if (!ci_req_sent_data(req) && ci_req_allow204(req)) {
         debugs(2, "DEBUG Responding with allow 204\n");
         return CI_MOD_ALLOW204;
@@ -914,7 +914,7 @@ int isIpAddress(char *src_addr)
 }
 
 
-int simple_pattern_compare(char *str, const int type)
+int simple_pattern_compare(const char *str, const int type)
 {
     int i = 0;
 
@@ -953,7 +953,7 @@ int simple_pattern_compare(char *str, const int type)
     return 0;
 }
 
-int client_pattern_compare(char *ip, char *name)
+int client_pattern_compare(const char *ip, char *name)
 {
     int i = 0;
 
@@ -987,6 +987,7 @@ int load_patterns()
 {
     char *buf = NULL;
     FILE *fp  = NULL;
+    int ret   = 0;
 
     if (isPathExists(CONFIG_FILE) == 0) {
         fp = fopen(CONFIG_FILE, "rt");
@@ -1020,8 +1021,10 @@ int load_patterns()
     if (squidguard != NULL) {
         debugs(0, "LOG Chaining with %s\n", squidguard);
     }
-    if (fclose(fp) != 0)
-        debugs(0, "ERROR Can't close configuration file\n");
+    ret = fclose(fp);
+    if (ret != 0) {
+        debugs(0, "ERROR Can't close configuration file (%d)\n", ret);
+    }
 
     /* Set default values */
     if (clamd_local == NULL) {
@@ -1342,10 +1345,10 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
     return 1;
 }
 
-char *http_content_type(ci_request_t * req)
+const char *http_content_type(ci_request_t * req)
 {
     ci_headers_list_t *heads;
-    char *val;
+    const char *val;
     if (!(heads =  ci_http_response_headers(req))) {
         /* Then maybe is a reqmod request, try to get request headers */
         if (!(heads = ci_http_request_headers(req)))
@@ -1682,8 +1685,8 @@ char * replace(const char *s, const char *old, const char *new)
     return ret;
 }
 
-int squidclamav_safebrowsing(ci_request_t * req, char *url, char *clientip,
-                             char *username)
+int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip,
+                             const char *username)
 {
     av_req_data_t *data = ci_service_data(req);
     char cbuff[MAX_URL_SIZE+60];

@@ -105,8 +105,8 @@ typedef struct {
 int add_pattern(char *s);
 void regcomp_pattern(void);
 int load_in_buff(char *);
-int simple_pattern_compare(char *, const int );
-int client_pattern_compare(char *, char *);
+int simple_pattern_compare(const char *, const int );
+int client_pattern_compare(const char *, char *);
 int load_patterns(void);
 
 
