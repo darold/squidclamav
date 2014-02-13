@@ -228,7 +228,7 @@ void cfgreload_command(const char *name, int type, const char **argv)
     logredir = 0;
     dnslookup = 1;
     safebrowsing = 0;
-    clamd_curr_ip = (char *) malloc (sizeof (char) * 128);
+    clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
     memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
     if (load_patterns() == 0)
         debugs(0, "FATAL reload configuration command failed!\n");
@@ -324,172 +324,161 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     const char *username;
     const char *content_type;
     ci_off_t content_length;
-    char *chain_ret = NULL;
-    char *ret = NULL;
     int chkipdone = 0;
 
     debugs(1, "DEBUG processing preview header.\n");
 
-    if (preview_data_len)
+    if (preview_data_len) {
         debugs(1, "DEBUG preview data size is %d\n", preview_data_len);
+    }
 
     /* Extract the HTTP header from the request */
-    if ((req_header = ci_http_request_headers(req)) == NULL) {
-        debugs(0, "ERROR bad http header, aborting.\n");
-        return CI_ERROR;
-    }
+    if ((req_header = ci_http_request_headers(req)) != NULL) {
 
-    /* Get the Authenticated user */
-    if ((username = ci_headers_value(req->request_header, "X-Authenticated-User")) != NULL) {
-        debugs(2, "DEBUG X-Authenticated-User: %s\n", username);
-        /* if a TRUSTUSER match => no squidguard and no virus scan */
-        if (simple_pattern_compare(username, TRUSTUSER) == 1) {
-            debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
-            return CI_MOD_ALLOW204;
-        }
+	    /* Get the Authenticated user */
+	    if ((username = ci_headers_value(req->request_header, "X-Authenticated-User")) != NULL) {
+		debugs(2, "DEBUG X-Authenticated-User: %s\n", username);
+		/* if a TRUSTUSER match => no squidguard and no virus scan */
+		if (simple_pattern_compare(username, TRUSTUSER) == 1) {
+		    debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+		    return CI_MOD_ALLOW204;
+		}
+	    }
+
+	    /* Check client Ip against SquidClamav trustclient */
+	    if ((clientip = ci_headers_value(req->request_header, "X-Client-IP")) != NULL) {
+		debugs(2, "DEBUG X-Client-IP: %s\n", clientip);
+		ip = inet_addr(clientip);
+		chkipdone = 0;
+		if (dnslookup == 1) {
+		    if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
+			if (clientname->h_name != NULL) {
+			    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+			    if (client_pattern_compare(clientip, clientname->h_name) > 0) {
+				debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				return CI_MOD_ALLOW204;
+			    }
+			    chkipdone = 1;
+			}
+		    }
+		}
+		if (chkipdone == 0) {
+		    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+		    if (client_pattern_compare(clientip, NULL) > 0) {
+			debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+			return CI_MOD_ALLOW204;
+		    }
+		}
+	    }
+
+	    /* Get the requested URL */
+	    if (!extract_http_info(req, req_header, &httpinf)) {
+		/* Something wrong in the header or unknow method */
+		debugs(1, "DEBUG bad http header, aborting.\n");
+		return CI_MOD_ALLOW204;
+	    }
+
+	    debugs(2, "DEBUG URL requested: %s\n", httpinf.url);
+
+	    /* Check the URL against SquidClamav Whitelist */
+	    if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
+		debugs(1, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+		return CI_MOD_ALLOW204;
+	    }
+
+	    /* set null client username to - */
+	    if (username == NULL) {
+		username = (char *)malloc(sizeof(char)*2);
+		strcpy((char *)username, "-");
+	    }
+
+	    /* set null client ip to - */
+	    if (clientip == NULL) {
+		clientip = (char *)malloc(sizeof(char)*2);
+		strcpy((char *)clientip, "-");
+	    }
+
+	    /* CONNECT method (https) can not be scanned so abort */
+	    if (strcmp(httpinf.method, "CONNECT") == 0) {
+		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
+		return CI_MOD_ALLOW204;
+	    }
+
+	    /* Check the URL against SquidClamav abort */
+	    if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
+		debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
+		return CI_MOD_ALLOW204;
+	    }
+
+	    if (safebrowsing == 1) {
+		if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
+		    debugs(1, "DEBUG Malware found stopping here.\n");
+		    return CI_MOD_CONTINUE;
+		}
+	    }
+	    /* Get the content length header */
+	    content_length = ci_http_content_length(req);
+	    debugs(2, "DEBUG Content-Length: %d\n", (int)content_length);
+
+	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
+		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
+		return CI_MOD_ALLOW204;
+	    }
+
+	    /* Get the content type header */
+	    if ((content_type = http_content_type(req)) != NULL) {
+		debugs(2, "DEBUG Content-Type: %s\n", content_type);
+		/* Check the Content-Type against SquidClamav abortcontent */
+		if (simple_pattern_compare(content_type, ABORTCONTENT)) {
+		    debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
+		    return CI_MOD_ALLOW204;
+		}
+	    }
+
+	    /* No data, so nothing to scan */
+	    if (!data || !ci_req_hasbody(req)) {
+		debugs(1, "DEBUG No body data, allow 204\n");
+		return CI_MOD_ALLOW204;
+	    }
+
+	    if (preview_data_len == 0) {
+		debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
+		return CI_MOD_ALLOW204;
+	    }
+
+	    data->url = ci_buffer_alloc(strlen(httpinf.url)+1);
+	    strcpy(data->url, httpinf.url);
+	    if (username != NULL) {
+		data->user = ci_buffer_alloc(strlen(username)+1);
+		strcpy(data->user, username);
+	    } else {
+		data->user = NULL;
+	    }
+	    if (clientip != NULL) {
+		data->clientip = ci_buffer_alloc(strlen(clientip)+1);
+		strcpy(data->clientip, clientip);
+	    } else {
+		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
+		data->clientip = NULL;
+	    }
+	    
     } else {
-        /* set null client to - */
-        username = (char *)malloc(sizeof(char)*2);
-        strcpy((char *)username, "-");
-    }
 
-    /* Check client Ip against SquidClamav trustclient */
-    if ((clientip = ci_headers_value(req->request_header, "X-Client-IP")) != NULL) {
-        debugs(2, "DEBUG X-Client-IP: %s\n", clientip);
-        ip = inet_addr(clientip);
-        chkipdone = 0;
-        if (dnslookup == 1) {
-            if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
-                if (clientname->h_name != NULL) {
-                    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
-                    if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-                        debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
-                        return CI_MOD_ALLOW204;
-                    }
-                    chkipdone = 1;
-                }
-            }
-        }
-        if (chkipdone == 0) {
-            /* if a TRUSTCLIENT match => no squidguard and no virus scan */
-            if (client_pattern_compare(clientip, NULL) > 0) {
-                debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
-                return CI_MOD_ALLOW204;
-            }
-        }
-    } else {
-        /* set null client to - */
-        clientip = (char *)malloc(sizeof(char)*2);
-        strcpy((char *)clientip, "-");
-    }
+	debugs(1, "WARNING bad http header, can not check URL, Content-Type and Content-Length.\n");
+	/*
+	return CI_ERROR;
+	*/
+	    /* No data, so nothing to scan */
+	    if (!data || !ci_req_hasbody(req)) {
+		debugs(1, "DEBUG No body data, allow 204\n");
+		return CI_MOD_ALLOW204;
+	    }
 
-    /* Get the requested URL */
-    if (!extract_http_info(req, req_header, &httpinf)) {
-        /* Something wrong in the header or unknow method */
-        debugs(1, "DEBUG bad http header, aborting.\n");
-        return CI_MOD_ALLOW204;
-    }
-    debugs(2, "DEBUG URL requested: %s\n", httpinf.url);
+	    if (preview_data_len == 0) {
+		debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
+		return CI_MOD_ALLOW204;
+	    }
 
-    /* Check the URL against SquidClamav Whitelist */
-    if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
-        debugs(1, "DEBUG No squidguard and antivir check (WHITELIST match) for url: %s\n", httpinf.url);
-        return CI_MOD_ALLOW204;
-    }
-
-
-    /* Check URL header against squidGuard */
-    if (usepipe == 1) {
-        char *rbuff = NULL;
-        debugs(2, "DEBUG Sending request to chained program: %s\n", squidguard);
-        debugs(2, "DEBUG Request: %s %s %s %s\n", httpinf.url,clientip,username,httpinf.method);
-        /* escaping escaped character to prevent unescaping by squidguard */
-        rbuff = replace(httpinf.url, "%", "%25");
-        fprintf(sgfpw,"%s %s %s %s\n",rbuff,clientip,username,httpinf.method);
-        fflush(sgfpw);
-        free(rbuff);
-        /* the chained redirector must return empty line if ok or the redirection url */
-        chain_ret = (char *)malloc(sizeof(char)*MAX_URL_SIZE);
-        if (chain_ret != NULL) {
-            ret = fgets(chain_ret,MAX_URL_SIZE,sgfpr);
-            if ((ret != NULL) && (strlen(chain_ret) > 1)) {
-                debugs(1, "DEBUG Chained program redirection received: %s\n", chain_ret);
-                if (logredir)
-                    debugs(0, "INFO Chained program redirection received: %s\n", chain_ret);
-                /* Create the redirection url to squid */
-                data->blocked = 1;
-                generate_redirect_page(strtok(chain_ret, " "), req, data);
-                free(chain_ret);
-                chain_ret = NULL;
-                return CI_MOD_CONTINUE;
-            }
-            free(chain_ret);
-            chain_ret = NULL;
-        }
-    }
-
-    /* CONNECT method (https) can not be scanned so abort */
-    if (strcmp(httpinf.method, "CONNECT") == 0) {
-        debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
-        return CI_MOD_ALLOW204;
-    }
-
-    /* Check the URL against SquidClamav abort */
-    if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
-        debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
-        return CI_MOD_ALLOW204;
-    }
-
-    if (safebrowsing == 1) {
-        if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
-            debugs(1, "DEBUG Malware found stopping here.\n");
-            return CI_MOD_CONTINUE;
-        }
-    }
-    /* Get the content length header */
-    content_length = ci_http_content_length(req);
-    debugs(2, "DEBUG Content-Length: %d\n", (int)content_length);
-
-    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
-        debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
-        return CI_MOD_ALLOW204;
-    }
-
-    /* Get the content type header */
-    if ((content_type = http_content_type(req)) != NULL) {
-        debugs(2, "DEBUG Content-Type: %s\n", content_type);
-        /* Check the Content-Type against SquidClamav abortcontent */
-        if (simple_pattern_compare(content_type, ABORTCONTENT)) {
-            debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
-            return CI_MOD_ALLOW204;
-        }
-    }
-
-    /* No data, so nothing to scan */
-    if (!data || !ci_req_hasbody(req)) {
-        debugs(1, "DEBUG No body data, allow 204\n");
-        return CI_MOD_ALLOW204;
-    }
-
-    if (preview_data_len == 0) {
-        debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
-        return CI_MOD_ALLOW204;
-    }
-
-    data->url = ci_buffer_alloc(strlen(httpinf.url)+1);
-    strcpy(data->url, httpinf.url);
-    if (username != NULL) {
-        data->user = ci_buffer_alloc(strlen(username)+1);
-        strcpy(data->user, username);
-    } else {
-        data->user = NULL;
-    }
-    if (clientip != NULL) {
-        data->clientip = ci_buffer_alloc(strlen(clientip)+1);
-        strcpy(data->clientip, clientip);
-    } else {
-        debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
-        data->clientip = NULL;
     }
 
     data->body = ci_simple_file_new(0);
@@ -504,6 +493,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
         if (ci_simple_file_write(data->body, preview_data, preview_data_len, ci_req_hasalldata(req)) == CI_ERROR)
             return CI_ERROR;
     }
+
+    debugs(2, "DEBUG End of method squidclamav_check_preview_handler\n");
 
     return CI_MOD_CONTINUE;
 }
@@ -1429,7 +1420,14 @@ int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
 
 void generate_template_page(ci_request_t *req, av_req_data_t *data)
 {
-    char buf[LOW_CHAR];
+    char buf[LOG_URL_SIZE];
+    char *malware;
+
+    malware = (char *) malloc (sizeof (char) * LOW_BUFF);
+    memset(malware, 0, sizeof(malware));
+    if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
+       data->malware += 8;
+    strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
 
     ci_http_response_remove_header(req, "Cache-Control");
     ci_http_response_remove_header(req, "Content-Disposition");
@@ -1444,23 +1442,63 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     ci_http_response_add_header(req, "Connection: close");
     ci_http_response_add_header(req, "Content-Type: text/html");
 
+    /*
+	This header is a shorter alternative to the X-Infection-Found header. On
+	a single line it can contain any virus or threat description. The ICAP
+	client MAY log this information.
+    */
+    snprintf(buf, LOW_BUFF, "X-Virus-ID: %s", (malware[0] != '\0') ? malware : "Unknown virus");
+    buf[sizeof(buf)-1] = '\0';
+    ci_http_response_add_header(req, buf);
+
+    /*
+	The TypeID can currently be one of the following three values: zero for
+	virus infections, one for mail policy violations (e.g. illegal file
+	attachment name) or two for container violations (e.g. a zip file that
+	takes too long to decompress).
+
+	The ResolutionID can currently be one of the following three values:
+	zero for a file that was not repaired, one if the returned file in the
+	RESPMOD response is the repaired version of the infected file that was
+	encapsulated in the request or two if the original file should be
+	blocked or rejected due to container or mail policy violations.
+
+	The ThreatDescription is a human-readable description of the threat, for
+	example the virus name or the policy violation description. It MAY
+	contain spaces, SHOULD NOT be quoted and MUST NOT contain semicolons
+	because it is terminated by the final semicolon of the header
+	definition.
+
+    */
+    snprintf(buf, LOW_BUFF, "X-Infection-Found: Type=0; Resolution=2; Threat=%s;", (malware[0] != '\0') ? malware : "Unknown virus");
+    buf[sizeof(buf)-1] = '\0';
+    ci_http_response_add_header(req, buf);
+
     data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
     data->error_page->hasalldata = 1;
 
-    snprintf(buf, LOW_CHAR, "Content-Language: %s",
+    snprintf(buf, LOW_BUFF, "Content-Language: %s",
              (char *)ci_membuf_attr_get(data->error_page, "lang"));
+    buf[sizeof(buf)-1] = '\0';
     ci_http_response_add_header(req, buf);
 
-    snprintf(buf, LOW_CHAR, "Content-Length: %d", (int)strlen(data->error_page->buf));
+    snprintf(buf, LOW_BUFF, "Content-Length: %d", (int)strlen(data->error_page->buf));
+    buf[sizeof(buf)-1] = '\0';
     ci_http_response_add_header(req, buf);
 }
 
-void generate_redirect_page(char * redirect, ci_request_t * req,
-                            av_req_data_t * data)
+void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t * data)
 {
     int new_size = 0;
     char buf[MAX_URL_SIZE];
     ci_membuf_t *error_page;
+    char *malware;
+
+    malware = (char *) malloc (sizeof (char) * LOW_BUFF);
+    memset(malware, 0, sizeof(malware));
+    if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
+       data->malware += 8;
+    strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
 
     new_size = strlen(blocked_header_message) + strlen(redirect) + strlen(blocked_footer_message) + 10;
 
@@ -1482,6 +1520,12 @@ void generate_redirect_page(char * redirect, ci_request_t * req,
     ci_http_response_add_header(req, "Connection: close");
     ci_http_response_add_header(req, "Content-Type: text/html");
     ci_http_response_add_header(req, "Content-Language: en");
+    snprintf(buf, LOW_BUFF, "X-Virus-ID: %s", (malware[0] != '\0') ? malware : "Unknown virus");
+    buf[sizeof(buf)-1] = '\0';
+    ci_http_response_add_header(req, buf);
+    snprintf(buf, LOW_BUFF, "X-Infection-Found: Type=0; Resolution=2; Threat=%s;", (malware[0] != '\0') ? malware : "Unknown virus");
+    buf[sizeof(buf)-1] = '\0';
+    ci_http_response_add_header(req, buf);
 
     if (data->blocked == 1) {
         error_page = ci_membuf_new_sized(new_size);
