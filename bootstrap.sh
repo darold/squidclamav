@@ -84,6 +84,7 @@ bootstrap autoconf$acver
 bootstrap autoheader$acver
 bootstrap automake$amver --foreign --add-missing --copy --force-missing
 fixmakefiles
+cp /usr/bin/libtool .
 
 echo "Autotool bootstrapping complete."
 
@@ -92,4 +93,5 @@ echo "Autotool bootstrapping complete."
 #&& autoconf \
 #&& autoheader \
 #&& automake --foreign --add-missing --copy --force-missing \
+#&& cp /usr/bin/libtool .
 
