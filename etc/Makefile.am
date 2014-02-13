@@ -4,7 +4,7 @@ cicapdatadir=@DATADIR@
 CONFIGDIR = @CONFDIR@
 CFGINST = @CFGDIR@
 
-TMPLS = templates/en/VIRUS_FOUND templates/en/UNSAFE_BROWSING
+TMPLS = templates/en/MALWARE_FOUND
 
 install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(CFGINST)

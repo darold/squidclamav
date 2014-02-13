@@ -174,7 +174,7 @@ CONFS = squidclamav.conf
 cicapdatadir = @DATADIR@
 CONFIGDIR = @CONFDIR@
 CFGINST = @CFGDIR@
-TMPLS = templates/en/VIRUS_FOUND templates/en/UNSAFE_BROWSING
+TMPLS = templates/en/MALWARE_FOUND
 EXTRA_DIST = squidclamav.conf $(TMPLS)
 all: all-am
 
