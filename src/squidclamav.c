@@ -441,11 +441,6 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		return CI_MOD_ALLOW204;
 	    }
 
-	    if (preview_data_len == 0) {
-		debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
-		return CI_MOD_ALLOW204;
-	    }
-
 	    data->url = ci_buffer_alloc(strlen(httpinf.url)+1);
 	    strcpy(data->url, httpinf.url);
 	    if (username != NULL) {
@@ -474,11 +469,10 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		return CI_MOD_ALLOW204;
 	    }
 
-	    if (preview_data_len == 0) {
-		debugs(1, "DEBUG can not begin to scan url: No preview data.\n");
-		return CI_MOD_ALLOW204;
-	    }
+    }
 
+    if (preview_data_len == 0) {
+	debugs(0, "WARNING can not begin to scan url: No preview data.\n");
     }
 
     data->body = ci_simple_file_new(0);
