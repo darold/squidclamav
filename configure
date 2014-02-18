@@ -12097,6 +12097,8 @@ if test "${with_c_icap+set}" = set; then :
        cicapdatadir=`$withval/bin/c-icap-config --datarootdir`
        cicaplibflags=`$withval/bin/c-icap-libicapapi-config --cflags`
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
+       cicapversion=`$withval/bin/c-icap-config --version`
+       cicapnotpl=`$withval/bin/c-icap-config --version | grep "0.1"`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs`
@@ -12106,6 +12108,8 @@ if test "${with_c_icap+set}" = set; then :
        cicapdatadir=`c-icap-config --datarootdir`
        cicaplibflags=`c-icap-libicapapi-config --cflags`
        cicapliblibs=`c-icap-libicapapi-config --libs`
+       cicapversion=`c-icap-config --version`
+       cicapnotpl=`c-icap-config --version | grep "0.1"`
     fi
 
 fi
@@ -12121,6 +12125,8 @@ if test -z "$cicapdir"; then
         cicapdatadir=`c-icap-config --datarootdir`
         cicaplibflags=`c-icap-libicapapi-config --cflags`
         cicapliblibs=`c-icap-libicapapi-config --libs`
+        cicapversion=`c-icap-config --version`
+        cicapnotpl=`c-icap-config --version | grep "0.1"`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -12143,12 +12149,19 @@ UTILITIES_CFLAGS="$cicaplibflags"
 CONFDIR="$cicapetc"
 MODSDIR="$cicapmods"
 DATADIR="$cicapdatadir"
+CICAPVERSION="$cicapversion"
 
 
 
 
 
 
+
+if test -z "$cicapnotpl"; then
+
+$as_echo "#define HAVE_CICAP_NOTMPL 1" >>confdefs.h
+
+fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if fds can send through unix sockets" >&5
 $as_echo_n "checking if fds can send through unix sockets... " >&6; }

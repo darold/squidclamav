@@ -123,11 +123,13 @@ int load_patterns(void);
     ci_debug_printf(LEVEL, "%s(%d) %s: ", __FILE__, __LINE__, __FUNCTION__); \
     ci_debug_printf(LEVEL, ARGS)
 
+#ifndef HAVE_CICAP_NOTMPL
 int fmt_malware(ci_request_t *req, char *buf, int len, const char *param);
 
 struct ci_fmt_entry GlobalTable [] = {
     {"%mn", "Malware Name", fmt_malware},
     { NULL, NULL, NULL}
 };
+#endif
 
 #endif

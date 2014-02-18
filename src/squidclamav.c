@@ -143,8 +143,12 @@ void free_global ();
 void free_pipe ();
 void generate_redirect_page(char *, ci_request_t *, av_req_data_t *);
 void generate_response_page(ci_request_t *, av_req_data_t *);
+#ifndef HAVE_CICAP_NOTMPL
 void generate_template_page(ci_request_t *, av_req_data_t *);
 void cfgreload_command(const char *name, int type, const char **argv);
+#else
+void cfgreload_command(char *name, int type, char **argv);
+#endif
 int create_pipe(char *command);
 int dconnect (void);
 int connectINET(char *serverHost, uint16_t serverPort);
@@ -213,7 +217,11 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     return CI_OK;
 }
 
+#ifndef HAVE_CICAP_NOTMPL
 void cfgreload_command(const char *name, int type, const char **argv)
+#else
+void cfgreload_command(char *name, int type, char **argv)
+#endif
 {
     debugs(1, "DEBUG reload configuration command received\n");
 
@@ -1032,6 +1040,13 @@ int load_patterns()
         }
     }
 
+#ifdef HAVE_CICAP_NOTMPL
+    if (redirect_url == NULL) {
+	debugs(0, "FATAL you must set redirect_url or use c-icap 0.2.x or upper to use templates\n");
+	return 0;
+    }
+#endif
+
     return 1;
 }
 
@@ -1394,11 +1409,14 @@ void generate_response_page(ci_request_t *req, av_req_data_t *data)
             debugs((logredir==0) ? 1 : 0, "Virus redirection: %s.\n", urlredir);
         generate_redirect_page(urlredir, req, data);
         free(urlredir);
+#ifndef HAVE_CICAP_NOTMPL
     } else {
         generate_template_page(req, data);
+#endif
     }
 }
 
+#ifndef HAVE_CICAP_NOTMPL
 int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
 {
    av_req_data_t *data = ci_service_data(req);
@@ -1480,6 +1498,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     buf[sizeof(buf)-1] = '\0';
     ci_http_response_add_header(req, buf);
 }
+#endif
 
 void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t * data)
 {

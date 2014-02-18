@@ -7,6 +7,10 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
 
+/* Define HAVE_CICAP_NOTMPL if have c-icap 0.1.x templates are not supported
+   */
+#define HAVE_CICAP_NOTMPL 1
+
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
 

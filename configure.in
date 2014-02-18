@@ -40,6 +40,8 @@ AC_ARG_WITH(c-icap,
        cicapdatadir=`$withval/bin/c-icap-config --datarootdir`
        cicaplibflags=`$withval/bin/c-icap-libicapapi-config --cflags`
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
+       cicapversion=`$withval/bin/c-icap-config --version`
+       cicapnotpl=`$withval/bin/c-icap-config --version | grep "0.1"`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs` 
@@ -49,6 +51,8 @@ AC_ARG_WITH(c-icap,
        cicapdatadir=`c-icap-config --datarootdir`
        cicaplibflags=`c-icap-libicapapi-config --cflags`
        cicapliblibs=`c-icap-libicapapi-config --libs`
+       cicapversion=`c-icap-config --version`
+       cicapnotpl=`c-icap-config --version | grep "0.1"`
     fi
 ],
 )
@@ -63,6 +67,8 @@ if test -z "$cicapdir"; then
         cicapdatadir=`c-icap-config --datarootdir`
         cicaplibflags=`c-icap-libicapapi-config --cflags`
         cicapliblibs=`c-icap-libicapapi-config --libs`
+        cicapversion=`c-icap-config --version`
+        cicapnotpl=`c-icap-config --version | grep "0.1"`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -78,12 +84,17 @@ UTILITIES_CFLAGS="$cicaplibflags"
 CONFDIR="$cicapetc"
 MODSDIR="$cicapmods"
 DATADIR="$cicapdatadir"
+CICAPVERSION="$cicapversion"
 AC_SUBST(MODULES_LIBADD)
 AC_SUBST(UTILITIES_LIBADD)
 AC_SUBST(UTILITIES_CFLAGS)
 AC_SUBST(CONFDIR)
 AC_SUBST(MODSDIR)
 AC_SUBST(DATADIR)
+
+if test -z "$cicapnotpl"; then
+AC_DEFINE(HAVE_CICAP_NOTMPL,1,[Define HAVE_CICAP_NOTMPL if have c-icap 0.1.x templates are not supported])
+fi
 
 AC_MSG_CHECKING([if fds can send through unix sockets])
 AC_TRY_COMPILE(
