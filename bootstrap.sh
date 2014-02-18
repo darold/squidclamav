@@ -8,7 +8,7 @@
 # automake installed, I mean GNU Autotools.
 #
 #-------------------------------------------------------------------------
-rm -rf *.log aclocal.m4 autoconf.h.in autom4te.cache compile stamp-* \
+rm -rf *.log aclocal.m4 autoconf.h*  autom4te.cache compile stamp-* \
 	libtool etc/Makefile config.* configure depcomp etc/Makefile.in \
 	src/*.o .deps src/squidclamav src/.deps install-sh ltmain.sh \
 	Makefile.in Makefile missing src/Makefile src/Makefile.in src/.libs

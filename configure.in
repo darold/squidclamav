@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT([SquidClamav], [6.10], [http://squidclamav.darold.net/], [squidclamav])
 
 AM_MAINTAINER_MODE
-AM_CONFIG_HEADER(autoconf.h)
+AM_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
@@ -41,7 +41,7 @@ AC_ARG_WITH(c-icap,
        cicaplibflags=`$withval/bin/c-icap-libicapapi-config --cflags`
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
        cicapversion=`$withval/bin/c-icap-config --version`
-       cicapnotpl=`$withval/bin/c-icap-config --version | grep "0.1"`
+       cicaphastmpl=`$withval/bin/c-icap-config --version | grep -v "^0.1"`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs` 
@@ -52,7 +52,7 @@ AC_ARG_WITH(c-icap,
        cicaplibflags=`c-icap-libicapapi-config --cflags`
        cicapliblibs=`c-icap-libicapapi-config --libs`
        cicapversion=`c-icap-config --version`
-       cicapnotpl=`c-icap-config --version | grep "0.1"`
+       cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
     fi
 ],
 )
@@ -68,7 +68,7 @@ if test -z "$cicapdir"; then
         cicaplibflags=`c-icap-libicapapi-config --cflags`
         cicapliblibs=`c-icap-libicapapi-config --libs`
         cicapversion=`c-icap-config --version`
-        cicapnotpl=`c-icap-config --version | grep "0.1"`
+        cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -92,8 +92,14 @@ AC_SUBST(CONFDIR)
 AC_SUBST(MODSDIR)
 AC_SUBST(DATADIR)
 
-if test -z "$cicapnotpl"; then
-AC_DEFINE(HAVE_CICAP_NOTMPL,1,[Define HAVE_CICAP_NOTMPL if have c-icap 0.1.x templates are not supported])
+AC_MSG_CHECKING([if c-icap support templates])
+if test "x$cicaphastmpl" != "x"; then
+	AC_DEFINE([HAVE_CICAP_TEMPLATE],[1],[Define HAVE_CICAP_TEMPLATE, using c-icap templates is supported.])
+	AC_SUBST(HAVE_TEMPLATE, [-DHAVE_CICAP_TEMPLATE])
+	AC_MSG_RESULT(yes)
+else
+	AC_SUBST(HAVE_TEMPLATE)
+	AC_MSG_RESULT(no)
 fi
 
 AC_MSG_CHECKING([if fds can send through unix sockets])
@@ -113,7 +119,7 @@ AC_TRY_COMPILE(
              cmh.cmsg_type = SCM_RIGHTS;
       }
       ],
-AC_DEFINE(HAVE_FD_PASSING,1,[Define HAVE_FD_PASSING if sending fd through unix socket supported])
+AC_DEFINE(HAVE_FD_PASSING,1,[Define HAVE_FD_PASSING if sending fd through unix socket supported]),
 AC_MSG_RESULT(yes), 
 AC_MSG_RESULT(no),
 )

@@ -623,6 +623,7 @@ USEBDB_TRUE
 USECLAMAV_FALSE
 USECLAMAV_TRUE
 LIBOBJS
+HAVE_TEMPLATE
 DATADIR
 MODSDIR
 CONFDIR
@@ -2278,7 +2279,7 @@ fi
   MAINT=$MAINTAINER_MODE_TRUE
 
 
-ac_config_headers="$ac_config_headers autoconf.h"
+ac_config_headers="$ac_config_headers config.h"
 
 
 am__api_version='1.11'
@@ -12098,7 +12099,7 @@ if test "${with_c_icap+set}" = set; then :
        cicaplibflags=`$withval/bin/c-icap-libicapapi-config --cflags`
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
        cicapversion=`$withval/bin/c-icap-config --version`
-       cicapnotpl=`$withval/bin/c-icap-config --version | grep "0.1"`
+       cicaphastmpl=`$withval/bin/c-icap-config --version | grep -v "^0.1"`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs`
@@ -12109,7 +12110,7 @@ if test "${with_c_icap+set}" = set; then :
        cicaplibflags=`c-icap-libicapapi-config --cflags`
        cicapliblibs=`c-icap-libicapapi-config --libs`
        cicapversion=`c-icap-config --version`
-       cicapnotpl=`c-icap-config --version | grep "0.1"`
+       cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
     fi
 
 fi
@@ -12126,7 +12127,7 @@ if test -z "$cicapdir"; then
         cicaplibflags=`c-icap-libicapapi-config --cflags`
         cicapliblibs=`c-icap-libicapapi-config --libs`
         cicapversion=`c-icap-config --version`
-        cicapnotpl=`c-icap-config --version | grep "0.1"`
+        cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -12157,10 +12158,20 @@ CICAPVERSION="$cicapversion"
 
 
 
-if test -z "$cicapnotpl"; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if c-icap support templates" >&5
+$as_echo_n "checking if c-icap support templates... " >&6; }
+if test "x$cicaphastmpl" != "x"; then
 
-$as_echo "#define HAVE_CICAP_NOTMPL 1" >>confdefs.h
+$as_echo "#define HAVE_CICAP_TEMPLATE 1" >>confdefs.h
 
+	HAVE_TEMPLATE=-DHAVE_CICAP_TEMPLATE
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if fds can send through unix sockets" >&5
@@ -12193,11 +12204,9 @@ if ac_fn_c_try_compile "$LINENO"; then :
 
 $as_echo "#define HAVE_FD_PASSING 1" >>confdefs.h
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
@@ -13852,7 +13861,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "autoconf.h") CONFIG_HEADERS="$CONFIG_HEADERS autoconf.h" ;;
+    "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;

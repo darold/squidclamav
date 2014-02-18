@@ -1,6 +1,7 @@
 
 CONFIGDIR = @CONFDIR@
 cicapmoduledir=@MODSDIR@
+HAVE_TEMPLATE=@HAVE_TEMPLATE@
 
 SUBDIRS = . src etc
 

@@ -41,7 +41,7 @@ am__aclocal_m4_deps = $(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
-CONFIG_HEADER = $(top_builddir)/autoconf.h
+CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -127,6 +127,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
+HAVE_TEMPLATE = @HAVE_TEMPLATE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -228,7 +229,7 @@ cicapmoduledir = @MODSDIR@
 cicapmodule_LTLIBRARIES = squidclamav.la
 squidclamav_la_LIBADD = @MODULES_LIBADD@
 squidclamav_la_LDFLAGS = -module -avoid-version
-squidclamav_la_CFLAGS = -I../../include/
+squidclamav_la_CFLAGS = -I../../include/ @HAVE_TEMPLATE@
 squidclamav_la_SOURCES = squidclamav.c
 EXTRA_DIST = squidclamav.h
 all: all-am
