@@ -647,7 +647,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             break;
         } else {
             debugs(3, "DEBUG Write %d bytes on %d to socket\n", (int)ret, nbread);
-            debugs(3, "DEBUG sent: %s\n", cbuff);
+            /*debugs(3, "DEBUG sent: %s\n", cbuff);*/
         }
         memset(cbuff, 0, sizeof(cbuff));
     }
