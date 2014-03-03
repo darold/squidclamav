@@ -1462,6 +1462,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     */
     snprintf(buf, LOW_BUFF, "X-Virus-ID: %s", (malware[0] != '\0') ? malware : "Unknown virus");
     buf[sizeof(buf)-1] = '\0';
+    ci_icap_add_xheader(req, buf);
     ci_http_response_add_header(req, buf);
 
     /*
@@ -1485,6 +1486,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     */
     snprintf(buf, LOW_BUFF, "X-Infection-Found: Type=0; Resolution=2; Threat=%s;", (malware[0] != '\0') ? malware : "Unknown virus");
     buf[sizeof(buf)-1] = '\0';
+    ci_icap_add_xheader(req, buf);
     ci_http_response_add_header(req, buf);
 
     data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
@@ -1536,9 +1538,11 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
     ci_http_response_add_header(req, "Content-Language: en");
     snprintf(buf, LOW_BUFF, "X-Virus-ID: %s", (malware[0] != '\0') ? malware : "Unknown virus");
     buf[sizeof(buf)-1] = '\0';
+    ci_icap_add_xheader(req, buf);
     ci_http_response_add_header(req, buf);
     snprintf(buf, LOW_BUFF, "X-Infection-Found: Type=0; Resolution=2; Threat=%s;", (malware[0] != '\0') ? malware : "Unknown virus");
     buf[sizeof(buf)-1] = '\0';
+    ci_icap_add_xheader(req, buf);
     ci_http_response_add_header(req, buf);
 
     if (data->blocked == 1) {
