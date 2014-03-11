@@ -1,3 +1,64 @@
+2014-03-11 version 6.11
+
+This release adds support to icap template allowing to display a templated
+response on block instead of redirecting to an external URL. Add new lines
+into HTTP and ICAP response header to set X-Infection-Found and X-Virus-ID
+when a virus is found. With the possiblity to scan data sent without preview
+this allow some commercial product like MoveIt DMZ to work with c-icap and
+squidclamav service. Lot of code clean up and bug fixes.
+
+	- Add X-Infection-Found and X-Virus-ID into icap response header.
+	  This allow some commercial product like MoveIt DMZ to work with
+	  c-icap/squidclamav service.
+	- Fix compilation issue with c-icap 1.6.x versions. Old version of
+	  c-icap ( < 0.2.x ) does not support icap template, this is now
+	  detected at configure time. Thanks to Graham Har for the report.
+	- Remove preview data enabling from mandatory option.
+	- Allow use of non HTTP request used by ICAP client like c-icap-client
+	  or request from commercial product such as Move It DMZ. For example:
+	    c-icap-client -i 127.0.0.1 -p 1344 -f eicar.zip \
+	    -s "squidclamav?allow204=on&force=on&sizelimit=off&mode=simple" -v
+	  Thanks to Henry ken for the feature request.
+	- Update Copyright
+	- Udapte auto generated configuration and make files and fix several
+	  compile time warning from squidclamav.c. Also fix an error message
+	  wrongly displayed at squidclamav.conf fd close time.
+	- Add MALWARE_FOUND icap template that will be displayed by Squid when
+	  a malware is found instead of redirecting to the CGI (when redirect
+	  configuration directive is not defined).
+	- Tested squidclamav with c-icap 0.3.2
+	- When there's no clamd running, die. bypass should be in the proxy
+	  setup instead of in squidclamav code. Thanks to Peter Molnar for
+	  the patch.
+	- Clean up HTTP Response headers. Thanks to Peter Molnar for the patch.
+	- Fix conflicting types for strnstr on freeBSD. Thanks to Mathias H for
+	  the report.
+	- Fix an issue on FreeBSD with squidclamav.conf parser reporting fatal
+	  error into add_pattern.
+	- Remove all of the built-in format tokens - these are included by c-icap,
+	  so no need to duplicate them here. Thanks to Nathan Hoad for the patch.
+	- Fix documentation about using template instead or redirect URL.
+	- Lots of code cleanup and debugs method, similar to what Squid uses.
+	  Thanks to Nathan Hoad for the patch.
+	- Updated all documentation to mention new behaviour in the absence of
+	  the redirection option. Thanks to Nathan Hoad for the patch.
+	- Displaying a templated response on block instead of redirecting.
+	  It supports all the format tokens that the LogFormat directive supports,
+	  plus %mn for displaying the virus name as identified by ClamAV. Thanks
+	  to Nathan Hoad for the patch.
+	- Don't stub out __FUNCTION__ unless we're definitely on Solaris. Thanks
+	  to Nathan Hoad for the patch.
+	- Provide a macro to make debug messages much nicer. This updates messages
+	  to display logs like so:
+	      squidclamav.c(252) squidclamav_close_service: DEBUG clean all memory!
+	  This makes debugging both nicer to read and write. Thanks to Nathan Hoad
+	  for the patch.
+	- Remove xfree, as any respectable compiler (i.e. one that follows the C
+	  standard) won't crash if you call free(3) on NULL. Thanks to Nathan Hoad
+	  for the patch.
+	- Normalise indentation and remove all trailing whitespace. No functional
+	  changes. Thanks to Nathan Hoad for the patch.
+
 2012-10-27 version 6.10
 
         - Replace clamd STREAM by zINSTREAM protocol as clamav have removed
