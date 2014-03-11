@@ -10,38 +10,21 @@ DESCRIPTION
     available for free, it is written in C as a c-icap service and can
     handle several thousands of connections at once.
 
-    Previous versions were only working as a Squid Redirector but this had
-    some bad limitations and broke many sites using cookies and post HTTP
-    method. The reason is that older squidclamav releases (< 6.0) had to
-    request the URL given by Squid through libcurl to download the file and
-    scan it. But this URL doesn't include the post parameters nor any header
-    information like cookies. The other advantage is that you can now scan
-    video/audio streaming without any problems.
-
-    SquidClamav v6 bypasses theses limitations by scanning only the HTTP
-    stream sent by Squid through the ICAP server. It doesn't make HTTP
-    requests itself so this is a gain of performance and ensures that the
-    data scanned is the same as the user has requested.
+    SquidClamav v6 only scan the HTTP stream sent by Squid through the ICAP
+    server. It doesn't make HTTP requests itself so this is a gain of
+    performance and ensures that the data scanned is the same as the user
+    has requested.
 
     Why use c-icap server? This is the only open source icap server written
-    in C, it is very fast and as I know/tested stable enough. I don't have
-    time to write my own so I think this is the best choice. If you don't
-    think so and report me too many problems related to c-icap, don't worry,
-    I will help to make it better - otherwise I will write my own but the
-    best choice is to help c-icap.
+    in C, it is very fast and stable.
 
     Why writing another clamav c-icap module? Well, to be honest, outside
     the survival of SquidClamav, I think that using clamd instead of
     libclamav to scan files is speediest and more simple than the srv_clamav
-    module provided with the c-icap server. The other argument is that you
-    can have your own redirect page like with previous versions of
-    SquidClamav. And to ending this part SquidGuard can still be called and
-    used like in previous releases, it means faster and with dedicated
-    redirect pages defined in your squidGuard configuration file.
+    module provided with the c-icap server.
 
-    SquidClamav v6 is still faster than any other HTTP antivirus and can
-    handle several thousands of simultaneous users at once, this is what we
-    need.
+    SquidClamav v6 is faster than any other HTTP antivirus and can handle
+    several thousands of simultaneous users at once, this is what we need.
 
     The other unique feature of SquidClamav is that you can have Clamd
     failover by setting up up to 4 clamd server IP addresses. When a clamd
@@ -119,11 +102,9 @@ USAGE
         'icap_.*' and add those configuration lines at the end of the icap
         section.
 
-        Here the bypass is set to 1, that means that in case of ICAP
+        Here the bypass is set to 1, that means that in case of squidclamav
         problems squid will simply ignore the error and continue. This is
-        the equivalent of the bridge mode in version 5.x. I recommand to
-        disable this feature when you want to check the load on your server
-        to be able to tune c-icap and clamd.
+        the equivalent of the bridge mode in version 5.x of suidclamav.
 
     Squid 3.0.x configuration
         For squid 3.0.x you must replace 'bypass=1' by '1' or 'bypass=0' by
@@ -148,11 +129,9 @@ USAGE
         'icap_.*' and add those configuration lines at the end of the icap
         section.
 
-        Here the bypass is set to 1, that mean that in case of ICAP problem
-        squid will simply ignore the error and continue. This is the
-        equivalent of the bridge mode in version 5.x. I recommand to disable
-        this feature when you want to check the load on your server to be
-        able to tune c-icap and clamd.
+        Here the bypass is set to 1, that means that in case of squidclamav
+        problems squid will simply ignore the error and continue. This is
+        the equivalent of the bridge mode in version 5.x of suidclamav.
 
     What do that configuration directives do? They enable Squid's ICAP
     client and tell Squid to send the logged username and client's IP
@@ -173,7 +152,7 @@ USAGE
     If you don't have package solutions or encounter problems when
     installing SquidClamav I recommand you to install the c-icap server from
     source as following. You can download it from SourceForge at
-    http://c-icap.sourceforge.net/. Choose version c-icap-0.1.2 or later
+    http://c-icap.sourceforge.net/. Choose version c-icap-0.3.2 or later
     versions, then run:
 
             ./configure --prefix=/usr/local/c-icap --enable-large-files
@@ -233,7 +212,7 @@ USAGE
     This will install the squidclamav.so library into the c-icap
     modules/services repository.
 
-   Runing c-icap server
+   Running c-icap server
     Finally, you can run the c-icap server as root user:
 
             /usr/local/c-icap/bin/c-icap
@@ -360,7 +339,7 @@ CONFIGURATION
             source=DOWNLOADER_IP_ADDRESS
             user=DOWNLOADER_IDENT
 
-   Using c-icap template instead of cgi scripts
+   Using c-icap template instead of redirect scripts
     If the redirect directive is not set, SquidClamav will attempt to load a
     template up from disk and send this back to the user. By default this
     template is found at the following path:
@@ -381,10 +360,12 @@ CONFIGURATION
     cgi-script or send an email.
 
    Chained Url Checker
-    This directive is preserved for backward compatibility but you must
-    remove it from your configuration file as it could result in many
-    squidclamav crashes. Please use the 'url_rewrite_program' squid.conf
-    directive instead to call squidGuard.
+    The squidguard directive is preserved for backward compatibility but you
+    must remove it from your configuration file as it could result in many
+    squidclamav crashes.
+
+    Please use the 'url_rewrite_program' squid.conf directive instead to
+    call squidGuard.
 
             url_rewrite_program /usr/bin/squidGuard
             url_rewrite_children 15

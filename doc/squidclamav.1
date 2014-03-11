@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2014-02-13" "perl v5.14.2" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2014-03-11" "perl v5.14.2" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -139,34 +139,20 @@ securing your home or enterprise network web traffic. SquidClamav is the most
 efficient antivirus tool for \s-1HTTP\s0 traffic available for free, it is written
 in C as a c\-icap service and can handle several thousands of connections at once.
 .PP
-Previous versions were only working as a Squid Redirector but this had some
-bad limitations and broke many sites using cookies and post \s-1HTTP\s0 method. The
-reason is that older squidclamav releases (< 6.0) had to request the \s-1URL\s0 given 
-by Squid through libcurl to download the file and scan it. But this \s-1URL\s0 doesn't
-include the post parameters nor any header information like cookies. The other
-advantage is that you can now scan video/audio streaming without any problems.
-.PP
-SquidClamav v6 bypasses theses limitations by scanning only the \s-1HTTP\s0 stream sent
-by Squid through the \s-1ICAP\s0 server. It doesn't make \s-1HTTP\s0 requests itself so this is
-a gain of performance and ensures that the data scanned is the same as the user
-has requested.
+SquidClamav v6 only scan the \s-1HTTP\s0 stream sent by Squid through the \s-1ICAP\s0 server.
+It doesn't make \s-1HTTP\s0 requests itself so this is a gain of performance and ensures
+that the data scanned is the same as the user has requested.
 .PP
 Why use c\-icap server? This is the only open source icap server written in C,
-it is very fast and as I know/tested stable enough. I don't have time
-to write my own so I think this is the best choice. If you don't think so and
-report me too many problems related to c\-icap, don't worry, I will help to make
-it better \- otherwise I will write my own but the best choice is to help c\-icap.
+it is very fast and stable.
 .PP
 Why writing another clamav c\-icap module? Well, to be honest, outside the
 survival of SquidClamav, I think that using clamd instead of libclamav to scan
 files is speediest and more simple than the srv_clamav module provided with the
-c\-icap server. The other argument is that you can have your own redirect page
-like with previous versions of SquidClamav. And to ending this part SquidGuard
-can still be called and used like in previous releases, it means faster and with
-dedicated redirect pages defined in your squidGuard configuration file.
+c\-icap server.
 .PP
-SquidClamav v6 is still faster than any other \s-1HTTP\s0 antivirus and can handle 
-several thousands of simultaneous users at once, this is what we need.
+SquidClamav v6 is faster than any other \s-1HTTP\s0 antivirus and can handle several
+thousands of simultaneous users at once, this is what we need.
 .PP
 The other unique feature of SquidClamav is that you can have Clamd failover by
 setting up up to 4 clamd server \s-1IP\s0 addresses. When a clamd server is not reachable
@@ -251,10 +237,9 @@ Here are the directives I use for Squid 3.1.x:
 If you don't know where to put them in squid.conf, just search for 'icap_.*'
 and add those configuration lines at the end of the icap section.
 .Sp
-Here the bypass is set to 1, that means that in case of \s-1ICAP\s0 problems squid will
-simply ignore the error and continue. This is the equivalent of the bridge mode
-in version 5.x. I recommand to disable this feature when you want to check the
-load on your server to be able to tune c\-icap and clamd.
+Here the bypass is set to 1, that means that in case of squidclamav problems
+squid will simply ignore the error and continue. This is the equivalent of the
+bridge mode in version 5.x of suidclamav.
 .IP "Squid 3.0.x configuration" 4
 .IX Item "Squid 3.0.x configuration"
 For squid 3.0.x you must replace 'bypass=1' by '1' or 'bypass=0' by '0' and
@@ -280,10 +265,9 @@ configuration lines change from version 3.1.x.
 If you don't know where to put them in squid.conf, just search for 'icap_.*'
 and add those configuration lines at the end of the icap section.
 .Sp
-Here the bypass is set to 1, that mean that in case of \s-1ICAP\s0 problem squid will
-simply ignore the error and continue. This is the equivalent of the bridge mode
-in version 5.x. I recommand to disable this feature when you want to check the
-load on your server to be able to tune c\-icap and clamd.
+Here the bypass is set to 1, that means that in case of squidclamav problems
+squid will simply ignore the error and continue. This is the equivalent of the
+bridge mode in version 5.x of suidclamav.
 .PP
 What do that configuration directives do? They enable Squid's \s-1ICAP\s0 client and 
 tell Squid to send the logged username and client's \s-1IP\s0 address to the \s-1ICAP\s0 server. 
@@ -304,7 +288,7 @@ an error message in case of a failure.
 If you don't have package solutions or encounter problems when installing SquidClamav
 I recommand you to install the c\-icap server from source as following. You can
 download it from SourceForge at http://c\-icap.sourceforge.net/. Choose version
-c\-icap\-0.1.2 or later versions, then run:
+c\-icap\-0.3.2 or later versions, then run:
 .PP
 .Vb 3
 \&        ./configure \-\-prefix=/usr/local/c\-icap \-\-enable\-large\-files
@@ -373,8 +357,8 @@ command as following:
 This will install the squidclamav.so library into the c\-icap modules/services
 repository.
 .PP
-\fIRuning c\-icap server\fR
-.IX Subsection "Runing c-icap server"
+\fIRunning c\-icap server\fR
+.IX Subsection "Running c-icap server"
 .PP
 Finally, you can run the c\-icap server as root user:
 .PP
@@ -523,8 +507,8 @@ Squidclamav will pass the following parameters to this \s-1CGI:\s0
 \&        user=DOWNLOADER_IDENT
 .Ve
 .PP
-Using c\-icap template instead of cgi scripts
-.IX Subsection "Using c-icap template instead of cgi scripts"
+Using c\-icap template instead of redirect scripts
+.IX Subsection "Using c-icap template instead of redirect scripts"
 .PP
 If the redirect directive is not set, SquidClamav will attempt to load a template
 up from disk and send this back to the user. By default this template is found at
@@ -556,8 +540,10 @@ cgi-script or send an email.
 \fIChained Url Checker\fR
 .IX Subsection "Chained Url Checker"
 .PP
-This directive is preserved for backward compatibility but you must remove it
-from your configuration file as it could result in many squidclamav crashes.
+The squidguard directive is preserved for backward compatibility but you
+must remove it from your configuration file as it could result in many
+squidclamav crashes.
+.PP
 Please use the 'url_rewrite_program' squid.conf directive instead to call
 squidGuard.
 .PP
