@@ -1802,6 +1802,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
         } else {
             memset (clbuf, 0, sizeof(clbuf));
             while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+		clbuf[nbread] = '\0';
                 debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
                     data->blocked = 1;
