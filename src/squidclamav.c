@@ -663,6 +663,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         /* Reading clamd result */
         memset (clbuf, 0, sizeof(clbuf));
         while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+	    clbuf[nbread] = '\0';
             debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
