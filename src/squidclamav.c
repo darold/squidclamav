@@ -413,6 +413,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (clientip == NULL) {
 		clientip = (char *)malloc(sizeof(char)*2);
 		strcpy((char *)clientip, "-");
+		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
 	    }
 
 	    /* CONNECT method (https) can not be scanned so abort */
@@ -472,21 +473,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    data->url = ci_buffer_alloc(strlen(httpinf.url)+1);
 	    strcpy(data->url, httpinf.url);
-	    if (username != NULL) {
-		data->user = ci_buffer_alloc(strlen(username)+1);
-		strcpy(data->user, username);
-		free(username);
-	    } else {
-		data->user = NULL;
-	    }
-	    if (clientip != NULL) {
-		data->clientip = ci_buffer_alloc(strlen(clientip)+1);
-		strcpy(data->clientip, clientip);
-		free(clientip);
-	    } else {
-		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
-		data->clientip = NULL;
-	    }
+	    data->user = ci_buffer_alloc(strlen(username)+1);
+	    strcpy(data->user, username);
+	    free(username);
+
+	    data->clientip = ci_buffer_alloc(strlen(clientip)+1);
+	    strcpy(data->clientip, clientip);
+	    free(clientip);
 	    
     } else {
 
