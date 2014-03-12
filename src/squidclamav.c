@@ -1153,7 +1153,7 @@ int add_pattern(char *s)
                 xstrncpy(squidguard, first, LOW_BUFF);
             } else {
                 debugs(0, "LOG Wrong path to SquidGuard, disabling.\n");
-                squidguard = NULL;
+		free(squidguard);
             }
         }
         free(type);
