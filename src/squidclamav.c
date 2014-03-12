@@ -208,7 +208,7 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
       read config files
      ********************/
     clamd_curr_ip = (char *) malloc (sizeof (char) * 128);
-    memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
+    memset(clamd_curr_ip, 0, sizeof (char) * 128);
 
     if (load_patterns() == 0) {
         return CI_ERROR;
@@ -237,7 +237,7 @@ void cfgreload_command(char *name, int type, char **argv)
     dnslookup = 1;
     safebrowsing = 0;
     clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
-    memset(clamd_curr_ip, 0, sizeof(clamd_curr_ip));
+    memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
     if (load_patterns() == 0)
         debugs(0, "FATAL reload configuration command failed!\n");
     if (squidclamav_xdata)
@@ -1461,7 +1461,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     char *malware;
 
     malware = (char *) malloc (sizeof (char) * LOW_BUFF);
-    memset(malware, 0, sizeof(malware));
+    memset(malware, 0, sizeof (char) * LOW_BUFF);
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
@@ -1535,7 +1535,7 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
     char *malware;
 
     malware = (char *) malloc (sizeof (char) * LOW_BUFF);
-    memset(malware, 0, sizeof(malware));
+    memset(malware, 0, sizeof (char) * LOW_BUFF);
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
