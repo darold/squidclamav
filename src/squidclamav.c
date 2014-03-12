@@ -1675,6 +1675,8 @@ int connectINET(char *serverHost, uint16_t serverPort)
     int asockd;
     struct sigaction action;
     action.sa_handler = connect_timeout;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_RESTART;
 
     memset ((char *) &server, 0, sizeof (server));
     server.sin_addr.s_addr = inet_addr(serverHost);
