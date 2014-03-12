@@ -1339,7 +1339,7 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
     }
 
     /* extract the HTTP method */
-    while (*str != ' ' && i < MAX_METHOD_SIZE) {
+    while (*str != ' ' && i < (MAX_METHOD_SIZE - 1)) {
         httpinf->method[i] = *str;
         str++;
         i++;
@@ -1350,7 +1350,7 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
     /* Extract the URL part of the header */
     while (*str == ' ') str++;
     i = 0;
-    while (*str != ' ' && i < MAX_URL_SIZE) {
+    while (*str != ' ' && i < (MAX_URL_SIZE - 1)) {
         httpinf->url[i] = *str;
         i++;
         str++;
