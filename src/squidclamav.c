@@ -656,7 +656,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
         /* Reading clamd result */
         memset (clbuf, 0, sizeof(clbuf));
-        while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+        while ((nbread = read(sockd, clbuf, SMALL_BUFF - 1)) > 0) {
 	    clbuf[nbread] = '\0';
             debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
@@ -1483,6 +1483,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     buf[sizeof(buf)-1] = '\0';
     ci_icap_add_xheader(req, buf);
     ci_http_response_add_header(req, buf);
+    free(malware);
 
     data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
     data->error_page->hasalldata = 1;
@@ -1795,7 +1796,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
             debugs(0, "ERROR Can't write INSTREAM ending chars to clamd socket.\n");
         } else {
             memset (clbuf, 0, sizeof(clbuf));
-            while ((nbread = read(sockd, clbuf, SMALL_BUFF)) > 0) {
+            while ((nbread = read(sockd, clbuf, SMALL_BUFF - 1)) > 0) {
 		clbuf[nbread] = '\0';
                 debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
