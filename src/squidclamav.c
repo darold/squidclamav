@@ -1677,13 +1677,12 @@ int dconnect()
                 debugs(1, "DEBUG Connected to Clamd (%s:%s)\n", ptr,clamd_port);
                 /* Store last working clamd */
                 xstrncpy(clamd_curr_ip, ptr, LOW_CHAR);
-                free(s);
                 break;
             }
             ptr = strtok(NULL, ",");
         }
-        return asockd;
         free(s);
+        return asockd;
     }
     return 0;
 }
