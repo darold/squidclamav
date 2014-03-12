@@ -349,6 +349,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		/* if a TRUSTUSER match => no squidguard and no virus scan */
 		if (simple_pattern_compare(username, TRUSTUSER) == 1) {
 		    debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+		    free(username);
 		    return CI_MOD_ALLOW204;
 		}
 	    }
@@ -364,6 +365,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 			    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
 			    if (client_pattern_compare(clientip, clientname->h_name) > 0) {
 				debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				free(clientip);
+				free(username);
 				return CI_MOD_ALLOW204;
 			    }
 			    chkipdone = 1;
@@ -374,6 +377,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
 		    if (client_pattern_compare(clientip, NULL) > 0) {
 			debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+			free(clientip);
+			free(username);
 			return CI_MOD_ALLOW204;
 		    }
 		}
@@ -383,6 +388,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (!extract_http_info(req, req_header, &httpinf)) {
 		/* Something wrong in the header or unknow method */
 		debugs(1, "DEBUG bad http header, aborting.\n");
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
@@ -391,6 +398,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    /* Check the URL against SquidClamav Whitelist */
 	    if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
 		debugs(1, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
@@ -409,18 +418,24 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    /* CONNECT method (https) can not be scanned so abort */
 	    if (strcmp(httpinf.method, "CONNECT") == 0) {
 		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
 	    /* Check the URL against SquidClamav abort */
 	    if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
 		debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
 	    if (safebrowsing == 1) {
 		if (squidclamav_safebrowsing(req, httpinf.url, clientip, username) != 0) {
 		    debugs(1, "DEBUG Malware found stopping here.\n");
+		    free(clientip);
+		    free(username);
 		    return CI_MOD_CONTINUE;
 		}
 	    }
@@ -430,6 +445,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
 		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
@@ -439,6 +456,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		/* Check the Content-Type against SquidClamav abortcontent */
 		if (simple_pattern_compare(content_type, ABORTCONTENT)) {
 		    debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
+		    free(clientip);
+		    free(username);
 		    return CI_MOD_ALLOW204;
 		}
 	    }
@@ -446,6 +465,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    /* No data, so nothing to scan */
 	    if (!data || !ci_req_hasbody(req)) {
 		debugs(1, "DEBUG No body data, allow 204\n");
+		free(clientip);
+		free(username);
 		return CI_MOD_ALLOW204;
 	    }
 
@@ -454,6 +475,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (username != NULL) {
 		data->user = ci_buffer_alloc(strlen(username)+1);
 		strcpy(data->user, username);
+		free(username);
 	    } else {
 		data->user = NULL;
 	    }
@@ -1808,6 +1830,10 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
                 if (strstr (clbuf, "FOUND")) {
                     data->blocked = 1;
                     data->malware = clbuf;
+		    if (sockd > -1) {
+			debugs(1, "DEBUG Closing Clamd connection.\n");
+			close(sockd);
+		    }
                     generate_response_page(req, data);
                     return 1;
                 }
