@@ -460,6 +460,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (clientip != NULL) {
 		data->clientip = ci_buffer_alloc(strlen(clientip)+1);
 		strcpy(data->clientip, clientip);
+		free(clientip);
 	    } else {
 		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
 		data->clientip = NULL;
