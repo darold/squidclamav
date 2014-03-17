@@ -331,7 +331,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     unsigned long ip;
     const char *username;
     const char *content_type;
-    ci_off_t content_length;
+    ci_off_t content_length = 0;
     int chkipdone = 0;
 
     debugs(1, "DEBUG processing preview header.\n");
@@ -427,10 +427,10 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    }
 	    /* Get the content length header */
 	    content_length = ci_http_content_length(req);
-	    debugs(2, "DEBUG Content-Length: %d\n", (int)content_length);
+	    debugs(2, "DEBUG Content-Length: %" PRINTF_OFF_T "\n", (CAST_OFF_T) content_length);
 
 	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
-		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%d > %d)\n", (int)content_length, (int)maxsize);
+		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) maxsize);
 		return CI_MOD_ALLOW204;
 	    }
 
