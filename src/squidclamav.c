@@ -255,7 +255,7 @@ int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata,
 {
 
     if (squidguard == NULL) {
-        debugs(1, "DEBUG squidguard not defined\n");
+        debugs(1, "DEBUG squidguard not defined, good\n");
         return CI_OK;
     }
 
