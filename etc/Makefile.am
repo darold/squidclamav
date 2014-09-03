@@ -7,7 +7,7 @@ CFGINST = @CFGDIR@
 TMPLS = templates/en/MALWARE_FOUND
 
 install-data-local:
-	$(mkinstalldirs) $(DESTDIR)$(CFGINST)
+	$(mkinstalldirs) $(DESTDIR)$(CONFIGDIR)
 	for f in $(CONFS); do \
 		$(INSTALL) $$f $(DESTDIR)$(CONFIGDIR)/$$f.default; \
 		if test ! -f $(DESTDIR)$(CONFIGDIR)/$$f; then $(INSTALL) $$f $(DESTDIR)$(CONFIGDIR)/$$f; fi \
