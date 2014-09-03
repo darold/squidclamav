@@ -42,7 +42,7 @@ void logit(char *, char *, ...);
 
 /* squidclamav.h */
 /*************  Default configuration file location  ***********/
-#define CONFIG_FILE "/etc/squidclamav.conf"
+#define CONFIG_FILE "squidclamav.conf"
 
 /************* Proxy configuration *************/
 #define PROXY_SERVER "127.0.0.1"

@@ -978,15 +978,15 @@ int load_patterns()
     FILE *fp  = NULL;
     int ret   = 0;
 
-    if (isPathExists(CONFIG_FILE) == 0) {
-        fp = fopen(CONFIG_FILE, "rt");
+    if (isPathExists(CONFIGDIR "/" CONFIG_FILE) == 0) {
+        fp = fopen(CONFIGDIR "/" CONFIG_FILE, "rt");
         if (debug > 0)
-            debugs(0, "LOG Reading configuration from %s\n", CONFIG_FILE);
+            debugs(0, "LOG Reading configuration from %s\n", CONFIGDIR "/" CONFIG_FILE);
     }
 
 
     if (fp == NULL) {
-        debugs(0, "FATAL unable to open configuration file: %s\n", CONFIG_FILE);
+        debugs(0, "FATAL unable to open configuration file: %s\n", CONFIGDIR "/" CONFIG_FILE);
         return 0;
     }
 
