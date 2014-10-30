@@ -474,7 +474,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     }
 
     if (preview_data_len == 0) {
-	debugs(1, "DEBUG Can not begin to scan url: No preview data.\n");
+	debugs(2, "DEBUG Can not begin to scan url: No preview data.\n");
     }
 
     data->body = ci_simple_file_new(0);
