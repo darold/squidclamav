@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2014-03-11" "perl v5.14.2" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2014-12-28" "perl v5.14.2" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -215,6 +215,29 @@ install the additional packages.
 .PP
 Once you have it enabled, to integrate c\-icap and SquidClamav to your squid
 cache just edit squid.conf and set the following directives.
+.IP "Squid 3.4.x configuration" 4
+.IX Item "Squid 3.4.x configuration"
+There are some configuration differences between 3.1.x and 3.4.x Squid version.
+Here are the directives I use for Squid 3.4.x:
+.Sp
+.Vb 10
+\&        icap_enable on
+\&        icap_send_client_ip on
+\&        icap_send_client_username on
+\&        icap_client_username_encode off
+\&        icap_client_username_header X\-Authenticated\-User
+\&        icap_preview_enable on
+\&        icap_preview_size 1024
+\&        icap_service service_avi_req reqmod_precache
+\&        icap://localhost:1344/squidclamav bypass=off
+\&        adaptation_access service_avi_req allow all
+\&        icap_service service_avi_resp respmod_precache
+\&        icap://localhost:1344/squidclamav bypass=on
+\&        adaptation_access service_avi_resp allow all
+.Ve
+.Sp
+If you don't know where to put them in squid.conf, just search for 'icap_.*'
+and add those configuration lines at the end of the icap section.
 .IP "Squid 3.1.x configuration" 4
 .IX Item "Squid 3.1.x configuration"
 There are some configuration differences between 3.1.x and 3.0.x Squid version.

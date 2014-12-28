@@ -85,6 +85,28 @@ cache just edit squid.conf and set the following directives.
 
 =over 4
 
+=item Squid 3.4.x configuration
+
+There are some configuration differences between 3.1.x and 3.4.x Squid version.
+Here are the directives I use for Squid 3.4.x:
+
+	icap_enable on
+	icap_send_client_ip on
+	icap_send_client_username on
+	icap_client_username_encode off
+	icap_client_username_header X-Authenticated-User
+	icap_preview_enable on
+	icap_preview_size 1024
+	icap_service service_avi_req reqmod_precache
+	icap://localhost:1344/squidclamav bypass=off
+	adaptation_access service_avi_req allow all
+	icap_service service_avi_resp respmod_precache
+	icap://localhost:1344/squidclamav bypass=on
+	adaptation_access service_avi_resp allow all
+
+If you don't know where to put them in squid.conf, just search for 'icap_.*'
+and add those configuration lines at the end of the icap section.
+
 =item Squid 3.1.x configuration
 
 There are some configuration differences between 3.1.x and 3.0.x Squid version.
