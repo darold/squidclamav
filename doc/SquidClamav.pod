@@ -368,6 +368,9 @@ Squidclamav will pass the following parameters to this CGI:
 	source=DOWNLOADER_IP_ADDRESS
 	user=DOWNLOADER_IDENT
 
+If this directive is disabled squidclamav will use c-icap error templates
+ to report issues. See below.
+
 =head4 Using c-icap template instead of redirect scripts
 
 If the redirect directive is not set, SquidClamav will attempt to load a template
