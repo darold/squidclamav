@@ -1,3 +1,26 @@
+2014-12-28 version 6.12
+
+This release fixes the default path to configuration file to be the same as
+c-icap configuration directory. Some issues revealed by Coverity Scanner
+have been fixed as well as some code cleanup.
+
+	- Update year in copyright.
+	- Add more information about redirect directive to documentation and
+	  configuration file.
+	- Update documentation to be more explicit about the --with-c-icap
+	  configure option. Thanks to Yuri Voinov for the suggestion.
+	- Add configuration for squid 3.4.x to documentation. Thanks to Yuri
+	  Voinov for the patch.
+	- Set debug level to 2 for message "Can not begin to scan url: No
+	  preview data". Thanks to Marco Gaiarin for the suggestion.
+	- Fix creation of configuration direction at inistall time.
+	- Fix default path to squidclamav.conf. It is now always installed and
+	  searched in c-icap configuration directory. /etc/squidclamav.conf is
+	  no more used as default. Thanks to Oliver Seeburger for the report.
+	- The message about undefined squidguard directive has been changed.
+	- Change cast on content_length printing.
+	- Fix some issues returned by Coverity scanner.
+
 2014-03-11 version 6.11
 
 This release adds support to icap template allowing to display a templated
