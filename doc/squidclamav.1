@@ -367,18 +367,27 @@ After that you can run the c\-icap server as explained below.
 \fISquidClamav installation/configuration\fR
 .IX Subsection "SquidClamav installation/configuration"
 .PP
-Installing SquidClamav requires that you already have installed the c\-icap as
-explained above. You must provide the installation path of c\-icap to the configure
-command as following:
+Installing SquidClamav requires that you already have installed the c\-icap
+as explained above. You must provide the installation path of c\-icap to the
+configure command as following:
 .PP
 .Vb 3
-\&        ./configure \-\-with\-c\-icap=/usr/local/c\-icap/
+\&        ./configure
 \&        make
 \&        make install
 .Ve
 .PP
 This will install the squidclamav.so library into the c\-icap modules/services
 repository.
+.PP
+Note that if the c\-icap installation does not save the c\-icap-config program in
+a directory that can be found in your default path you will need to give the
+path to this program to squidclamav at configure time:
+.PP
+.Vb 2
+\&        ./configure \-\-with\-c\-icap=/usr/local/c\-icap/
+\&        make && make install
+.Ve
 .PP
 \fIRunning c\-icap server\fR
 .IX Subsection "Running c-icap server"
