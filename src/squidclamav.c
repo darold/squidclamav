@@ -1437,14 +1437,8 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
        data->malware += 8;
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
 
-    ci_http_response_remove_header(req, "Cache-Control");
-    ci_http_response_remove_header(req, "Content-Disposition");
-    ci_http_response_remove_header(req, "Content-Type");
-    ci_http_response_remove_header(req, "Server");
-    ci_http_response_remove_header(req, "Connection");
-    ci_http_response_remove_header(req, "Content-Length");
-    ci_http_response_remove_header(req, "Content-Language");
-
+    if ( ci_http_response_headers(req))
+	ci_http_response_reset_headers(req);
     ci_http_response_add_header(req, "HTTP/1.0 403 Forbidden");
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
