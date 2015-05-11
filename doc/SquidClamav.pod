@@ -476,7 +476,7 @@ then you just have to set whitelist in squidclamav.conf as follow:
 
 	whitelist /usr/local/c-icap/etc/sc_whitelist
 
-the file must contain only one regex per line ans no extra character.
+the file must contain only one regex per line and no extra character.
 
 =item trustuser
 

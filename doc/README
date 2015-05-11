@@ -469,7 +469,7 @@ CONFIGURATION
 
                 whitelist /usr/local/c-icap/etc/sc_whitelist
 
-        the file must contain only one regex per line ans no extra
+        the file must contain only one regex per line and no extra
         character.
 
     trustuser
