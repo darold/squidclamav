@@ -771,6 +771,29 @@ int isPathSecure(const char *path)
     return 0;
 }
 
+/* return 0 if file exists and is readable, -1 otherwise */
+int
+isFileExists(const char *path)
+{
+    struct stat sb;
+
+    /* no path => unreal, that's possible ! */
+    if (path == NULL) return -1;
+
+    /* file doesn't exist or access denied */
+    if (lstat(path, &sb) != 0) return -1;
+
+    /* File is not a regular file */
+    if ( S_ISDIR(sb.st_mode ) ) return -1;
+    if ( S_ISCHR(sb.st_mode ) ) return -1;
+    if ( S_ISBLK(sb.st_mode ) ) return -1;
+    if ( S_ISFIFO(sb.st_mode ) ) return -1;
+    if ( S_ISSOCK(sb.st_mode ) ) return -1;
+
+    return 0;
+}
+
+
 /* Remove spaces and tabs from beginning and end of a string */
 void trim(char *str)
 {
@@ -1000,7 +1023,7 @@ int load_patterns()
         /* chop newline */
         chomp(buf);
         /* add to regex patterns array */
-        if ( (strlen(buf) > 0) && (add_pattern(buf) == 0) ) {
+        if ( (strlen(buf) > 0) && (add_pattern(buf, 0) == 0) ) {
             free(buf);
             fclose(fp);
             return 0;
@@ -1069,7 +1092,7 @@ int growPatternArray(SCPattern item)
 }
 
 /* Add regexp expression to patterns array */
-int add_pattern(char *s)
+int add_pattern(char *s, int level)
 {
     char *first = NULL;
     char *type  = NULL;
@@ -1095,6 +1118,8 @@ int add_pattern(char *s)
     /* remove extra space or tabulation */
     trim(first);
 
+    if (debug > 0)
+	debugs(0, "LOG Reading directive %s with value %s\n", type, first);
     /* URl to redirect Squid on virus found */
     if(strcmp(type, "redirect") == 0) {
         redirect_url = (char *) malloc (sizeof (char) * LOW_BUFF);
@@ -1252,6 +1277,13 @@ int add_pattern(char *s)
         currItem.type = ABORTCONTENT;
     } else if(strcmp(type, "whitelist") == 0) {
         currItem.type = WHITELIST;
+	if (level == 0) {
+		if (readFileContent(first, type) == 1) {
+			free(type);
+			free(first);
+			return 1;
+		}
+	}
     } else if(strcmp(type, "trustuser") == 0) {
         currItem.type = TRUSTUSER;
     } else if(strcmp(type, "trustclient") == 0) {
@@ -1287,6 +1319,53 @@ int add_pattern(char *s)
     }
     free(type);
     free(first);
+    return 1;
+}
+
+/* return 1 when the file have some regex content, 0 otherwise */
+int
+readFileContent(char *filepath, char *kind)
+{
+    char *buf = NULL;
+    FILE *fp  = NULL;
+    int ret   = 0;
+    char str[LOW_BUFF+LOW_CHAR+1];
+
+    if (isFileExists(filepath) != 0) {
+	return 0;
+    }
+
+    if (debug > 0)
+        debugs(0, "LOG Reading %s information from file from %s\n", kind, filepath);
+    fp = fopen(filepath, "rt");
+    if (fp == NULL) {
+        debugs(0, "FATAL unable to open %s file: %s\n", kind, filepath);
+        return 0;
+    }
+
+    buf = (char *)malloc(sizeof(char)*LOW_BUFF*2);
+    if (buf == NULL) {
+        debugs(0, "FATAL unable to allocate memory in readFileContent()\n");
+        fclose(fp);
+        return 0;
+    }
+    while ((fgets(buf, LOW_BUFF, fp) != NULL)) {
+        /* chop newline */
+        chomp(buf);
+        /* add to regex patterns array */
+        snprintf(str, LOW_CHAR + LOW_BUFF, "%s %s", kind, buf);
+        if ( (strlen(buf) > 0) && (add_pattern(str, 1) == 0) ) {
+            free(buf);
+            fclose(fp);
+            return 0;
+        }
+    }
+    free(buf);
+    ret = fclose(fp);
+    if (ret != 0) {
+        debugs(0, "ERROR Can't close file %s (%d)\n", filepath, ret);
+    }
+
     return 1;
 }
 

@@ -457,6 +457,21 @@ CONFIGURATION
 
         will deliver any files from hosts on clamav.net domain directly.
 
+        You can alse use a file containing all regex that might be
+        whitelisted and provide the file name to the whitelist dorective.
+        Suppose that you have a file named
+        /usr/local/c-icap/etc/sc_whitelist with the following content:
+
+                \.clamav\.net
+                \.darold\.net
+
+        then you just have to set whitelist in squidclamav.conf as follow:
+
+                whitelist /usr/local/c-icap/etc/sc_whitelist
+
+        the file must contain only one regex per line ans no extra
+        character.
+
     trustuser
         The 'trustuser' directive allows you to disable chained program and
         virus scan when an ident matches the search pattern. On regex found

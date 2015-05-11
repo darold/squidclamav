@@ -28,6 +28,7 @@
 void xstrncpy(char *, const char *, size_t);
 void chomp(char *);
 int isPathExists(const char *);
+int isFileExists(const char *);
 int isPathSecure(const char *);
 size_t strlcat(char *dst, const char *src, size_t siz);
 size_t xstrnlen(const char *s, size_t n);
@@ -102,12 +103,13 @@ typedef struct {
     regex_t regexv;
 } SCPattern;
 
-int add_pattern(char *s);
+int add_pattern(char *s, int level);
 void regcomp_pattern(void);
 int load_in_buff(char *);
 int simple_pattern_compare(const char *, const int );
 int client_pattern_compare(const char *, char *);
 int load_patterns(void);
+int readFileContent(char *filepath, char *kind);
 
 
 // compatibility with folks that don't have __FUNCTION__, e.g. solaris
