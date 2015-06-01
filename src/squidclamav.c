@@ -287,6 +287,10 @@ void *squidclamav_init_request_data(ci_request_t * req)
         return NULL;
     }
     data->body = NULL;
+    data->url = NULL;
+    data->clientip = NULL;
+    data->user = NULL;
+    data->malware = NULL;
     data->error_page = NULL;
     data->req = req;
     data->blocked = 0;
@@ -303,15 +307,14 @@ void squidclamav_release_request_data(void *data)
     if (data) {
         debugs(1, "DEBUG Releasing request data.\n");
 
-        if (((av_req_data_t *) data)->body) {
+        if (((av_req_data_t *) data)->body)
             ci_simple_file_destroy(((av_req_data_t *) data)->body);
-            if (((av_req_data_t *) data)->url)
-                ci_buffer_free(((av_req_data_t *) data)->url);
-            if (((av_req_data_t *) data)->user)
-                ci_buffer_free(((av_req_data_t *) data)->user);
-            if (((av_req_data_t *) data)->clientip)
+        if (((av_req_data_t *) data)->url)
+            ci_buffer_free(((av_req_data_t *) data)->url);
+        if (((av_req_data_t *) data)->user)
+            ci_buffer_free(((av_req_data_t *) data)->user);
+        if (((av_req_data_t *) data)->clientip)
                 ci_buffer_free(((av_req_data_t *) data)->clientip);
-        }
 
         if (((av_req_data_t *) data)->error_page)
             ci_membuf_free(((av_req_data_t *) data)->error_page);
