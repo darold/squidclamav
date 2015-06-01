@@ -1,3 +1,16 @@
+2015-06-01 version 6.13
+
+This release fix some minor issues and allow to use a file with a list of regular
+expression to be whitelisted.
+
+   - Fix some memory management issues. Thanks to mbechler for the patch.
+   - Fix typo in documentation
+   - Allow whitelist directive to receive a file as value import the whitelist
+     from another file. This file must only contain a list of regex (one per
+     line) to be whitelisted. Thanks to karlmendes for the feature request.
+   - Fix generated 403 response which was not correct. Thanks to Manoj
+     Ramakrishnan for the report and Christos Tsantilas for the fix.
+
 2014-12-28 version 6.12
 
 This release fixes the default path to configuration file to be the same as
