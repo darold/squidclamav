@@ -14,9 +14,9 @@ $source =~ s/\/-//;
 my $user = CGI::escapeHTML($cgi->param('user')) || '';
 
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Обнаружен вирус!";
-my $subtitle = 'содержит вирус';
+my $subtitle = 'Имя вируса';
 my $errorreturn = 'Этот файл не может быть загружен.';
-my $urlerror = 'одержит вирус';
+my $urlerror = 'содержит вирус';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
 	$subtitle = 'Malware / pishing type';
