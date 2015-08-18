@@ -2,6 +2,7 @@
 use strict;
 
 use CGI;
+use Sys::Hostname;
 
 my $VERSION = '6.13';
 
@@ -12,12 +13,14 @@ my $virus = CGI::escapeHTML($cgi->param('virus')) || CGI::escapeHTML($cgi->param
 my $source = CGI::escapeHTML($cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML($cgi->param('user')) || '';
+my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
+my $default_recoverurl = "https://".hostname."/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
 
 
-my $TITLE_VIRUS = "SquidClamAv $VERSION: Virus detected!";
-my $subtitle = 'Virus name';
+my $TITLE_VIRUS = "SquidClamAv $VERSION: Threat detected!";
+my $subtitle = 'Threat name';
 my $errorreturn = 'This file cannot be downloaded.';
-my $urlerror = 'contains a virus';
+my $urlerror = 'contains a threat';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
 	$subtitle = 'Malware / pishing type';
@@ -54,6 +57,14 @@ print qq{
 	font-style:normal;
 	font-weight:bolder;
 }
+.visu a:link, a:visited, a:active {
+	text-decoration: none;
+	color:#FFFFFF;
+}
+.visu a:hover {
+	text-decoration: none;
+	color:#00FF00;
+}
 </style>	
 	<div class="visu">
 	<h2>$TITLE_VIRUS</h2>
@@ -70,9 +81,17 @@ print qq{
 	$errorreturn
 	<p>
 	Origin: $source / $user
+};
+
+print qq{
+	<p>
+	Recover: <a target="_blank" href="$default_recoverurl$recover">link to recover data</a>
+} if ( (defined $recover) && (length($recover) > 0));
+
+print qq{
 	<p>
 	<hr>
-	<font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
+	<font color="#03ACFF"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
 	</div>
 };
 
