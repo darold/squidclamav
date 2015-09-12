@@ -410,8 +410,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
 	    }
 
-	    /* CONNECT method (https) can not be scanned so abort */
-	    if (strcmp(httpinf.method, "CONNECT") == 0) {
+	    /* CONNECT (https) and OPTIONS methods can not be scanned so abort */
+	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
 		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
 		return CI_MOD_ALLOW204;
 	    }
