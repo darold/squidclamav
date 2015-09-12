@@ -42,6 +42,7 @@ AC_ARG_WITH(c-icap,
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
        cicapversion=`$withval/bin/c-icap-config --version`
        cicaphastmpl=`$withval/bin/c-icap-config --version | grep -v "^0.1"`
+       cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs` 
@@ -53,6 +54,7 @@ AC_ARG_WITH(c-icap,
        cicapliblibs=`c-icap-libicapapi-config --libs`
        cicapversion=`c-icap-config --version`
        cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
+       cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     fi
 ],
 )
@@ -69,6 +71,7 @@ if test -z "$cicapdir"; then
         cicapliblibs=`c-icap-libicapapi-config --libs`
         cicapversion=`c-icap-config --version`
         cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
+	cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -99,6 +102,16 @@ if test "x$cicaphastmpl" != "x"; then
 	AC_MSG_RESULT(yes)
 else
 	AC_SUBST(HAVE_TEMPLATE)
+	AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING([if c-icap supports hasalldata or flags])
+if test $cicaphasalldata -lt 40; then
+	AC_DEFINE([HAVE_CICAP_HASALLDATA],[1],[Define HAVE_CICAP_HASALLDATA, using c-icap hasalldata when supported otherwise use flags.])
+	AC_SUBST(HAVE_HASALLDATA, [-DHAVE_CICAP_HASALLDATA])
+	AC_MSG_RESULT(yes)
+else
+	AC_SUBST(HAVE_HASALLDATA)
 	AC_MSG_RESULT(no)
 fi
 

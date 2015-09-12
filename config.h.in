@@ -6,6 +6,10 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
+/* Define HAVE_CICAP_HASALLDATA, using c-icap hasalldata when supported
+   otherwise use flags. */
+#undef HAVE_CICAP_HASALLDATA
+
 /* Define HAVE_CICAP_TEMPLATE, using c-icap templates is supported. */
 #undef HAVE_CICAP_TEMPLATE
 

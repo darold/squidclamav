@@ -623,6 +623,7 @@ USEBDB_TRUE
 USECLAMAV_FALSE
 USECLAMAV_TRUE
 LIBOBJS
+HAVE_HASALLDATA
 HAVE_TEMPLATE
 DATADIR
 MODSDIR
@@ -12100,6 +12101,7 @@ if test "${with_c_icap+set}" = set; then :
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
        cicapversion=`$withval/bin/c-icap-config --version`
        cicaphastmpl=`$withval/bin/c-icap-config --version | grep -v "^0.1"`
+       cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs`
@@ -12111,6 +12113,7 @@ if test "${with_c_icap+set}" = set; then :
        cicapliblibs=`c-icap-libicapapi-config --libs`
        cicapversion=`c-icap-config --version`
        cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
+       cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     fi
 
 fi
@@ -12128,6 +12131,7 @@ if test -z "$cicapdir"; then
         cicapliblibs=`c-icap-libicapapi-config --libs`
         cicapversion=`c-icap-config --version`
         cicaphastmpl=`c-icap-config --version | grep -v "^0.1"`
+	cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
     else
         echo "ERROR: c-icap-config not found!"
 	exit -1;
@@ -12165,6 +12169,22 @@ if test "x$cicaphastmpl" != "x"; then
 $as_echo "#define HAVE_CICAP_TEMPLATE 1" >>confdefs.h
 
 	HAVE_TEMPLATE=-DHAVE_CICAP_TEMPLATE
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if c-icap supports hasalldata or flags" >&5
+$as_echo_n "checking if c-icap supports hasalldata or flags... " >&6; }
+if test $cicaphasalldata -lt 40; then
+
+$as_echo "#define HAVE_CICAP_HASALLDATA 1" >>confdefs.h
+
+	HAVE_HASALLDATA=-DHAVE_CICAP_HASALLDATA
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }

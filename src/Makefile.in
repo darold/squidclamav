@@ -127,6 +127,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
+HAVE_HASALLDATA = @HAVE_HASALLDATA@
 HAVE_TEMPLATE = @HAVE_TEMPLATE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -229,7 +230,7 @@ cicapmoduledir = @MODSDIR@
 cicapmodule_LTLIBRARIES = squidclamav.la
 squidclamav_la_LIBADD = @MODULES_LIBADD@
 squidclamav_la_LDFLAGS = -module -avoid-version
-squidclamav_la_CFLAGS = -I../../include/ @HAVE_TEMPLATE@ -DCONFIGDIR=\"$(CONFIGDIR)\"
+squidclamav_la_CFLAGS = -I../../include/ @HAVE_TEMPLATE@ @HAVE_HASALLDATA@ -DCONFIGDIR=\"$(CONFIGDIR)\"
 squidclamav_la_SOURCES = squidclamav.c
 EXTRA_DIST = squidclamav.h
 all: all-am

@@ -1562,7 +1562,11 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     free(malware);
 
     data->error_page = ci_txt_template_build_content(req, "squidclamav", "MALWARE_FOUND", GlobalTable);
+#ifdef HAVE_CICAP_HASALLDATA
     data->error_page->hasalldata = 1;
+#else
+    data->error_page->flags = CI_MEMBUF_HAS_EOF;
+#endif
 
     snprintf(buf, LOW_BUFF, "Content-Language: %s",
              (char *)ci_membuf_attr_get(data->error_page, "lang"));
