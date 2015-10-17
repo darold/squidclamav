@@ -1,3 +1,16 @@
+2015-10-01 version 6.14
+
+This release fix a compilation issue with c-icap 0.4.x and exclude the HTTP
+method OPTIONS from being virus scanned.
+
+  - Fix compilation issue with C-icap 0.4.x replacement of hasalldata with
+    flags. Thanks to Akash Shende for the patch.
+  - Change configure and makefile templates to automatically adapt the code
+    following the c-icap version.
+  - Excluded OPTIONS http method from being scanned. Thanks to Yuri Voinov
+    for the report.
+  - Fix some ru_RU translation errors. Thanks to romale for the report.
+
 2015-06-01 version 6.13
 
 This release fix some minor issues and allow to use a file with a list of regular
