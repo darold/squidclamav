@@ -1,0 +1,20 @@
+SquidClamAV and libarchive
+
+ClamAV and other antivirus software are sometimes unable to detect threats within archives.
+Squid can be used to block file access according to mime types/file name extensions but
+that can lead to many false positives as it's unrealistic to block eg. "zip" files without
+analyzing their content.
+
+SquidClamAV can make use of libarchive to read file entries within eg. a zip file and block
+according to a user-defined pattern. Recent threats that are not being detected by most 
+antivirus software usually come in the form of small 5KB zip archives with a single cab or
+vbe file within. Ransomware is often distributed in this format via SMTP and webmail.
+
+Fortunately, with Squid (and optionally sslbump) you can open whichever archive the user is
+trying to download and ban it if it contains, eg. one single cab or vbe entry within a 5KB
+zip file without even scanning it with Clamd.
+
+False positives can occur and to avoid user complaints, the admin can choose to copy the 
+archive to a local quarantine directory. The same applies for virus files.
+
+Author: Vieri Di Paola
