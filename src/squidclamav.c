@@ -1886,6 +1886,18 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
 			debugs(1, "DEBUG Closing Clamd connection.\n");
 			close(sockd);
 		    }
+		    if ((data->url == NULL) && (url != NULL)) {
+		        data->url = ci_buffer_alloc(strlen(url)+1);
+		        strcpy(data->url, url);
+		    }
+		    if ((data->user == NULL) && (username != NULL)) {
+		        data->user = ci_buffer_alloc(strlen(username)+1);
+		        strcpy(data->user, username);
+		    }
+		    if ((data->clientip == NULL) && (clientip != NULL)) {
+		        data->clientip = ci_buffer_alloc(strlen(clientip)+1);
+		        strcpy(data->clientip, clientip);
+		    }
                     generate_response_page(req, data);
                     return 1;
                 }
@@ -1903,3 +1915,4 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
 
     return 0;
 }
+
