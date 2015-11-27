@@ -1606,7 +1606,7 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
 
     debugs(3, "DEBUG %s\n", buf);
 
-    ci_http_response_add_header(req, "HTTP/1.0 301 Moved Permanently");
+    ci_http_response_add_header(req, "HTTP/1.0 307 Temporary Redirect");
     ci_http_response_add_header(req, buf);
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
