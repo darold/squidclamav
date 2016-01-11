@@ -1854,7 +1854,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
     debugs(1, "DEBUG Ok connected to clamd socket.\n");
 
     debugs(1, "DEBUG: Scanning url for Malware now\n");
-    uint32_t buf[BUFSIZ/sizeof(uint32_t)];
+    uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
     strcpy(cbuff, "From test\n\n<a href=");
     strncat(cbuff, url, MAX_URL_SIZE);
     strcat(cbuff, ">squidclamav-safebrowsing-test</a>\n");
