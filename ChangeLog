@@ -1,3 +1,18 @@
+2016-01-18 version 6.15
+
+This release fixes a major bug of a buffer overflow in squidclamav safebrowsing
+and change the http response code in squidclamav redirection when a virus is
+found.
+
+  - Update copyrights
+  - Fix buffer overflow in squidclamav_safebrowsing(). Thanks to Stuart
+    Henderson for the patch.
+  - Change http response code 301 (move permanently) to 307 (temporary
+    redirect) in squidclamav redirection when a virus is found. Thanks to
+    Alexander Koch for the report.
+  - Fix null url, client ip and username in safebrowsing report. Thanks to
+    Claus Regelmann for the patch.
+
 2015-10-01 version 6.14
 
 This release fix a compilation issue with c-icap 0.4.x and exclude the HTTP
