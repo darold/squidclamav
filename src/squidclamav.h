@@ -122,8 +122,10 @@ int readFileContent(char *filepath, char *kind);
 #endif
 
 #define debugs(LEVEL, ARGS...) \
-    ci_debug_printf(LEVEL, "%s(%d) %s: ", __FILE__, __LINE__, __FUNCTION__); \
-    ci_debug_printf(LEVEL, ARGS)
+    { \
+        ci_debug_printf(LEVEL, "%s(%d) %s: ", __FILE__, __LINE__, __FUNCTION__); \
+        ci_debug_printf(LEVEL, ARGS); \
+    }
 
 #ifdef HAVE_CICAP_TEMPLATE
 int fmt_malware(ci_request_t *req, char *buf, int len, const char *param);
