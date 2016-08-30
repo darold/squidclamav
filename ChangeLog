@@ -9,6 +9,9 @@ an possibly some other wrong behaviors.
     by add_pattern().
   - Enclose debugs macro to avoid misusage. Thanks to Denis Volpato
     Martins for the patch.
+  - Fix Apache complain "AH01215: CGI::param called in list context
+    from package main line 14, this can lead to vulnerabilities."
+    Thanks to thctlo for the report.
 
 Please upgrade asap.
 
