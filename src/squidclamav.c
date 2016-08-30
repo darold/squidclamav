@@ -223,7 +223,7 @@ void cfgreload_command(const char *name, int type, const char **argv)
 void cfgreload_command(char *name, int type, char **argv)
 #endif
 {
-    debugs(1, "DEBUG reload configuration command received\n");
+    debugs(0, "LOG reload configuration command received\n");
 
     free_global();
     free_pipe();
