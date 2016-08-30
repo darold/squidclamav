@@ -1,3 +1,17 @@
+2016-08-30 version 6.16
+
+This release fixes a major bug with debugs macro that can have
+bad side effects like printing an error after configuration reload
+an possibly some other wrong behaviors.
+
+  - Change log level of configuration reloading message.
+  - Show line in configuration file that can not be parsed
+    by add_pattern().
+  - Enclose debugs macro to avoid misusage. Thanks to Denis Volpato
+    Martins for the patch.
+
+Please upgrade asap.
+
 2016-01-18 version 6.15
 
 This release fixes a major bug of a buffer overflow in squidclamav safebrowsing
