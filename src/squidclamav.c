@@ -1027,6 +1027,7 @@ int load_patterns()
         chomp(buf);
         /* add to regex patterns array */
         if ( (strlen(buf) > 0) && (add_pattern(buf, 0) == 0) ) {
+	    debugs(0, "FATAL can't add pattern: %s\n", buf);
             free(buf);
             fclose(fp);
             return 0;
