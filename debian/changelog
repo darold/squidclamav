@@ -1,0 +1,42 @@
+c-icap-module-squidclamav (1:6.16-1-custom1) unstable; urgency=medium
+
+  * New upstream release 6.16, changelog from source:
+  - Change log level of configuration reloading message.
+  - Show line in configuration file that can not be parsed
+    by add_pattern().
+  - Enclose debugs macro to avoid misusage. Thanks to Denis Volpato
+    Martins for the patch.
+  - Fix Apache complain "AH01215: CGI::param called in list context
+    from package main line 14, this can lead to vulnerabilities."
+    Thanks to thctlo for the report.
+
+ -- Louis van Belle <louis@van-belle.nl>  Fri, 02 Sep 2016 08:49:07 +0200
+
+c-icap-module-squidclamav (1:6.15-1-custom1) unstable; urgency=medium
+
+  * New upstream
+    - recompile again the c-icap-modules standards.
+    - Update copyrights
+    - Fix buffer overflow in squidclamav_safebrowsing(). 
+         Thanks to Stuart Henderson for the patch.
+    - Change http response code 301 (move permanently) to 307 (temporary redirect) 
+      in squidclamav redirection when a virus is found. 
+         Thanks to Alexander Koch for the report.
+    - Fix null url, client ip and username in safebrowsing report. 
+         Thanks to Claus Regelmann for the patch.
+
+ -- Louis van Belle <louis@van-belle.nl>  Thu, 18 Feb 2016 15:17:07 +0200
+
+c-icap-module-squidclamav (1:6.14-1-custom1) unstable; urgency=medium
+
+  * New upstream
+  * recompile again the c-icap-modules standards.
+
+ -- Louis van Belle <louis@van-belle.nl>  Mon, 19 Nov 2015 12:27:07 +0200
+
+c-icap-module-squidclamav (1:6.13-custom11) unstable; urgency=medium
+
+  * New upstream
+  * recompile again the c-icap-modules standards.
+
+ -- Louis van Belle <louis@van-belle.nl>  Mon, 08 Jun 2015 10:27:07 +0200

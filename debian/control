@@ -1,0 +1,20 @@
+Source: c-icap-module-squidclamav
+Section: net
+Priority: extra
+Maintainer: Louis van Belle <louis@van-belle.nl>
+Uploaders: Louis van Belle <louis@van-belle.nl>
+Build-Depends: debhelper (>= 9~), autotools-dev, libicapapi-dev (>=1:0.3.2~), libclamav-dev, libltdl-dev | libltdl3-dev, libdb-dev, dh-autoreconf
+Standards-Version: 3.9.6
+Homepage: http://squidclamav.darold.net/
+
+Package: libc-icap-mod-squidclamav
+Architecture: any
+Pre-Depends: multiarch-support
+Depends: ${shlibs:Depends}, ${misc:Depends}, clamav, c-icap (>=1:0.3.2~)
+Breaks: c-icap (<<1:0.4.2-1)
+Replaces: c-icap
+Provides: libc-icap-module
+Description: Antivirus Service for c-icap
+ This is an antivirus Service for c-icap which uses libclamav or clamd to do
+ scanning. It is distributed with c-icap and written by the same author.
+
