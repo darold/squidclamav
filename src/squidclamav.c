@@ -118,6 +118,7 @@ ci_off_t maxsize = 0;
 int logredir = 0;
 int dnslookup = 1;
 int safebrowsing = 0;
+int sslbump = 0;
 
 /* Used by pipe to squidGuard */
 int usepipe = 0;
@@ -236,6 +237,7 @@ void cfgreload_command(char *name, int type, char **argv)
     logredir = 0;
     dnslookup = 1;
     safebrowsing = 0;
+    sslbump = 0;
     clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
     memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
     if (load_patterns() == 0)
@@ -411,7 +413,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    }
 
 	    /* CONNECT (https) and OPTIONS methods can not be scanned so abort */
-	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
+	    if ( ((sslbump == 0) && (strcmp(httpinf.method, "CONNECT") == 0)) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
 		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
 		return CI_MOD_ALLOW204;
 	    }
@@ -1162,32 +1164,28 @@ int add_pattern(char *s, int level)
     }
 
     if(strcmp(type, "debug") == 0) {
-        if (debug == 0)
-            debug = atoi(first);
+        debug = atoi(first);
         free(type);
         free(first);
         return 1;
     }
 
     if(strcmp(type, "logredir") == 0) {
-        if (logredir == 0)
-            logredir = atoi(first);
+        logredir = atoi(first);
         free(type);
         free(first);
         return 1;
     }
 
     if(strcmp(type, "dnslookup") == 0) {
-        if (dnslookup == 1)
-            dnslookup = atoi(first);
+        dnslookup = atoi(first);
         free(type);
         free(first);
         return 1;
     }
 
     if(strcmp(type, "safebrowsing") == 0) {
-        if (safebrowsing == 0)
-            safebrowsing = atoi(first);
+        safebrowsing = atoi(first);
         free(type);
         free(first);
         return 1;
@@ -1264,6 +1262,13 @@ int add_pattern(char *s, int level)
             maxsize = maxsize * 1024 * 1024;
         else if (*end == 'g' || *end == 'G')
             maxsize = maxsize * 1024 * 1024 * 1024;
+        free(type);
+        free(first);
+        return 1;
+    }
+
+    if(strcmp(type, "sslbump") == 0) {
+        sslbump = atoi(first);
         free(type);
         free(first);
         return 1;
