@@ -466,7 +466,7 @@ For example:
 will deliver any files from hosts on clamav.net domain directly.
 
 You can alse use a file containing all regex that might be whitelisted and
-provide the file name to the whitelist dorective. Suppose that you have a
+provide the file name to the whitelist directive. Suppose that you have a
 file named /usr/local/c-icap/etc/sc_whitelist with the following content:
 
 	\.clamav\.net
