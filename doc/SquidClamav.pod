@@ -513,15 +513,6 @@ preserve backward compatibility but you must deactivate this feature if you
 don't use trustclient with hostname in the regexp or if you don't have a DNS
 on your network. Disabling it will also speed up squidclamav.
 
-=item sslbump
-
-Enable this directive if you use SslBump in Squid to be able to scan https
-connect request otherwise encrypted tunnels will not be scan at all by default.
-Decrypting HTTPS tunnels without user consent or knowledge may violate ethical
-norms and may be illegal in your jurisdiction. Make sure you understand what
-you are doing and that your decision makers have enough information to make
-wise choices. 
- 
 =back
 
 =head3 Safebrowsing
@@ -530,7 +521,7 @@ ClamAV 0.95 introduced support for Google Safe Browsing database.  The database
 is packed inside a CVD file and distributed through our mirror network as
 safebrowsing.cvd. This feature is disabled by default on all clamav installations.
 
-In order to enable this feature, you must first add "SafeBrowsing Yes" to freshclam.conf.
+In order to enable this feature, you must first add “SafeBrowsing Yes” to freshclam.conf.
 There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the
 database directory, ClamAV will enable safe browsing. To turn it off you need to update
 freshclam.conf and remove the safebrowsing files from the database directory before
