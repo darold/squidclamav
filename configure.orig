@@ -12845,7 +12845,6 @@ case "$host" in
 		ADDITONAL_LIB=''
 	    ;;
 esac
-ADDITONAL_LIB="$ADDITONAL_LIB -larchive -lz -lbz2"
 
 
 CFGDIR=/etc
