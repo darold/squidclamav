@@ -12101,7 +12101,7 @@ if test "${with_c_icap+set}" = set; then :
        cicapliblibs=`$withval/bin/c-icap-libicapapi-config --libs`
        cicapversion=`$withval/bin/c-icap-config --version`
        cicaphastmpl=`$withval/bin/c-icap-config --version | grep -v "^0.1"`
-       cicaphasalldata=`c-icap-config --version | sed 's/\.//g'`
+       cicaphasalldata=`$withval/bin/c-icap-config --version | sed 's/\.//g'`
     else
        cicapflags=`c-icap-config --cflags`
        cicaplibs=`c-icap-config --libs`
