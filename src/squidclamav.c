@@ -118,6 +118,7 @@ ci_off_t maxsize = 0;
 int logredir = 0;
 int dnslookup = 1;
 int safebrowsing = 0;
+int multipart = 0;
 
 /* Used by pipe to squidGuard */
 int usepipe = 0;
@@ -236,6 +237,7 @@ void cfgreload_command(char *name, int type, char **argv)
     logredir = 0;
     dnslookup = 1;
     safebrowsing = 0;
+    multipart = 0;
     clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
     memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
     if (load_patterns() == 0)
@@ -585,6 +587,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     ci_simple_file_t *body;
     char cbuff[MAX_URL_SIZE];
     char clbuf[SMALL_BUFF];
+    char *content_type;
 
     ssize_t ret;
     int nbread = 0;
@@ -623,6 +626,35 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     }
 
     debugs(1, "DEBUG Ok connected to clamd.\n");
+
+    /*-----------------------------------------------------*/
+
+    if ((multipart == 1) && (content_type = http_content_type(req)) != NULL) {
+		/* Check the Content-Type is of type multipart/ */
+        while(*content_type == ' ' || *content_type == '\t') content_type++;
+        if(strncmp(content_type, "multipart/", 10) == 0) {
+            uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
+            char *dest;
+            int content_type_length = strlen(content_type);
+            debugs(2, "DEBUG Multipart Content-Type: %s\n", content_type);
+            if (content_type_length > (LBUFSIZ - sizeof(uint32_t) - 26 - 4)) {
+                debugs(0, "ERROR Can't write multipart header to clamd socket: header too big.\n");
+            } else {
+                int header_size =  26 + content_type_length + 4;
+                buf[0] = htonl(header_size);
+                dest = &buf[1];
+                memcpy(dest, "To: ClamAV\r\nContent-Type: ", 26);
+                dest += 26;
+                memcpy(dest, content_type, content_type_length);
+                dest += content_type_length;
+                memcpy(dest, "\r\n\r\n", 4);
+                ret = sendln (sockd,(const char *) buf, header_size + sizeof(uint32_t));
+                if ( ret <= 0 ) {
+                    debugs(0, "ERROR Can't write multipart headers to clamd socket.\n");
+                }
+            }
+        }
+    }
 
     /*-----------------------------------------------------*/
 
@@ -1188,6 +1220,14 @@ int add_pattern(char *s, int level)
     if(strcmp(type, "safebrowsing") == 0) {
         if (safebrowsing == 0)
             safebrowsing = atoi(first);
+        free(type);
+        free(first);
+        return 1;
+    }
+
+    if(strcmp(type, "multipart") == 0) {
+        if (multipart == 0)
+            multipart = atoi(first);
         free(type);
         free(first);
         return 1;

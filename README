@@ -556,6 +556,11 @@ CONFIGURATION
         when the content-length of the file is bigger than the defined
         value. By default there's no size limit.
 
+    multipart
+        Send the Content-Type header to Clamav for multipart content types
+        so multipart bodies can be broken up by their boundary and each part
+        can be scanned.
+
   Testing SquidClamav
     As SquidClamav v6.0 is now a c-icap service, it can no more be run at
     console in interactive mode. To check what is going wrong, you must edit
