@@ -83,6 +83,15 @@ struct IN_BUFF {
 #define TRUSTCLIENT  3
 #define ABORT        4
 #define ABORTCONTENT 5
+/* libarchive */
+#define BANFILE      6
+#define INVALID_CHARS "\\/:*?<>|"
+#define PREFIX_BANNED "banned_"
+#define PREFIX_VIRUS "virus_"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a > _b ? _a : _b; })
 
 #define ACCEL_NORMAL 1
 #define ACCEL_START  2

@@ -173,6 +173,7 @@ case "$host" in
 		ADDITONAL_LIB=''
 	    ;;
 esac
+ADDITONAL_LIB="$ADDITONAL_LIB -larchive -lz -lbz2"
 AC_SUBST([ADDITONAL_LIB])
 
 dnl Force config directory to be /etc/
