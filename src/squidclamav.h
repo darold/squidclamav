@@ -83,6 +83,8 @@ struct IN_BUFF {
 #define TRUSTCLIENT  3
 #define ABORT        4
 #define ABORTCONTENT 5
+
+#ifdef HAVE_LIBARCHIVE
 /* libarchive */
 #define BANFILE      6
 #define INVALID_CHARS "\\/:*?<>|"
@@ -92,6 +94,8 @@ struct IN_BUFF {
     ({ __typeof__ (a) _a = (a); \
         __typeof__ (b) _b = (b); \
         _a > _b ? _a : _b; })
+
+#endif
 
 #define ACCEL_NORMAL 1
 #define ACCEL_START  2

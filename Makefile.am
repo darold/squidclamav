@@ -2,6 +2,7 @@
 CONFIGDIR = @CONFDIR@
 cicapmoduledir=@MODSDIR@
 HAVE_TEMPLATE=@HAVE_TEMPLATE@
+HAVE_ARCHIVE=@HAVE_ARCHIVE@
 HAVE_HASALLDATA=@HAVE_HASALLDATA@
 
 SUBDIRS = . src etc
@@ -20,6 +21,7 @@ DEFAULT_DOC_DIR         = $(datadir)/squidclamav
 DEFAULT_LIBEXEC_DIR     = $(libexecdir)/squidclamav
 
 DEFS = @DEFS@
+OBJDIR = @OBJDIR@
 
 man1_MANS = doc/squidclamav.1
 docdir = $(DEFAULT_DOC_DIR)

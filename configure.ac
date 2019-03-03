@@ -11,18 +11,20 @@ AM_INIT_AUTOMAKE([subdir-objects])
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_C_BIGENDIAN
+AC_CONFIG_MACRO_DIRS([m4])
 
 AC_DISABLE_STATIC
 AC_LIBTOOL_DLOPEN
 AC_LIBTOOL_WIN32_DLL
+AC_LIBTOOL_OBJDIR
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
 
 dnl AC_CANONICAL_HOST
 
-if test "x$GCC" != "x" ; then
-        AC_USE_SYSTEM_EXTENSIONS
-fi
+#if test "x$GCC" != "x" ; then
+#	AC_USE_SYSTEM_EXTENSIONS
+#fi
 
 CFLAGS="$CFLAGS -Wall"
 
@@ -78,10 +80,16 @@ if test -z "$cicapdir"; then
     fi
 fi
 
+# Check for libarchive
+if test -f "/usr/include/archive.h" || test -f "/usr/local/include/archive.h"; then
+	haslibarchive='yes'
+	libarchivelibs=" -larchive -lz -lbz2"
+fi
+
 AM_CONDITIONAL(CICAPMODULESDIR, [test -n $cicapmods])
 
 CFLAGS="$CFLAGS $cicapflags"
-MODULES_LIBADD="$cicaplibs"
+MODULES_LIBADD="$cicaplibs $libarchivelibs"
 UTILITIES_LIBADD="$cicapliblibs"
 UTILITIES_CFLAGS="$cicaplibflags"
 CONFDIR="$cicapetc"
@@ -115,6 +123,17 @@ else
 	AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING([if libarchive is supported])
+if test "x$haslibarchive" != "x"; then
+	AC_DEFINE([HAVE_LIBARCHIVE],[1],[Define HAVE_LIBARCHIVE, using libarchive is supported.])
+	AC_SUBST(HAVE_ARCHIVE, [-DHAVE_LIBARCHIVE])
+	AC_MSG_RESULT(yes)
+else
+	AC_SUBST(HAVE_ARCHIVE)
+	AC_MSG_RESULT(no)
+fi
+
+
 AC_MSG_CHECKING([if fds can send through unix sockets])
 AC_TRY_COMPILE(
        [
@@ -139,7 +158,7 @@ AC_MSG_RESULT(no),
 
 # Check for header files
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h ctype.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h regex.h signal.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h ctype.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h regex.h signal.h archive.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_PID_T
@@ -173,7 +192,7 @@ case "$host" in
 		ADDITONAL_LIB=''
 	    ;;
 esac
-ADDITONAL_LIB="$ADDITONAL_LIB -larchive -lz -lbz2"
+
 AC_SUBST([ADDITONAL_LIB])
 
 dnl Force config directory to be /etc/

@@ -53,19 +53,15 @@
 #include <errno.h>
 #include <signal.h>
 
-/**
- * headers for libarchive support
- */
-#include <sys/stat.h>
+/* headers for libarchive support */
+#ifdef HAVE_LIBARCHIVE
 #include <archive.h>
 #include <archive_entry.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+#endif
 
 #define LBUFSIZ		32768
 
-/* Structure used to store information passed throught the module methods (libarchive support) */
+/* Structure used to store information passed throught the module methods */
 typedef struct av_req_data{
     ci_simple_file_t *body;
     ci_request_t *req;
@@ -77,7 +73,7 @@ typedef struct av_req_data{
     char *user;
     char *clientip;
     char *malware;
-    char *recover;
+    char *recover; /* libarchive support */
 } av_req_data_t;
 
 static int SEND_PERCENT_BYTES = 0;
@@ -99,10 +95,12 @@ int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata, struct ci_serv
 
 /* General functions */
 void set_istag(ci_service_xdata_t * srv_xdata);
+#ifdef HAVE_LIBARCHIVE
 /* Functions for libarchive support */
 const char *get_filename_ext(const char *filename);
 int copy_file(int ptr_old, const char  *new_filename);
 int has_invalid_chars(const char *inv_chars, const char *target);
+#endif
 
 /* Declare SquidClamav C-ICAP service */
 CI_DECLARE_MOD_DATA ci_service_module_t service = {
@@ -139,6 +137,7 @@ int dnslookup = 1;
 int safebrowsing = 0;
 int multipart = 0;
 
+#ifdef HAVE_LIBARCHIVE
 /* vars for libarchive support */
 int banfile = 0;
 ci_off_t req_content_length = 0;
@@ -148,6 +147,7 @@ char *recover_path = NULL;
 int recovervirus = 1;
 int ban_max_entries = 0;
 int ban_max_matched_entries = 0;
+#endif
 
 /* Used by pipe to squidGuard */
 int usepipe = 0;
@@ -268,11 +268,13 @@ void cfgreload_command(char *name, int type, char **argv)
     safebrowsing = 0;
     multipart = 0;
 
+#ifdef HAVE_LIBARCHIVE
     /* libarchive */
     banmaxsize = 0;
     recovervirus = 0;
     ban_max_entries = 0;
     ban_max_matched_entries = 0;
+#endif
 
     clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
     memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
@@ -470,13 +472,14 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    content_length = ci_http_content_length(req);
 	    debugs(2, "DEBUG Content-Length: %" PRINTF_OFF_T "\n", (CAST_OFF_T) content_length);
 
+#ifdef HAVE_LIBARCHIVE
 	    /* libarchive */
 	    req_content_length = content_length;
 	    if ((content_length > 0) && (max_maxsize > 0) && (content_length >= max_maxsize)) {
 		debugs(2, "DEBUG No antivir or archive check, content-length higher than highest maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) max_maxsize);
 		return CI_MOD_ALLOW204;
 	    }
-
+#endif
 	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
 		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) maxsize);
 		return CI_MOD_ALLOW204;
@@ -630,7 +633,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     ci_simple_file_t *body;
     char cbuff[MAX_URL_SIZE];
     char clbuf[SMALL_BUFF];
-    char *content_type;
+    const char *content_type;
 
     ssize_t ret;
     int nbread = 0;
@@ -657,6 +660,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     /* SCAN DATA HERE */
 
+#ifdef HAVE_LIBARCHIVE
     /* Block archive entries supported by libarchive before scanning for virus. */
 
     /* If local path was specified then generate unique file name to copy data.
@@ -744,6 +748,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     /* Now check for virus. */
     if ((req_content_length > 0) && (maxsize >= 0) && (req_content_length <= maxsize)) {
+#endif
 
     if ((sockd = dconnect ()) < 0) {
         debugs(0, "ERROR Can't connect to Clamd daemon.\n");
@@ -762,24 +767,20 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     /*-----------------------------------------------------*/
 
     if ((multipart == 1) && (content_type = http_content_type(req)) != NULL) {
-		/* Check the Content-Type is of type multipart/ */
+	/* Check the Content-Type is of type multipart/ */
         while(*content_type == ' ' || *content_type == '\t') content_type++;
         if(strncmp(content_type, "multipart/", 10) == 0) {
             uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
-            char *dest;
             int content_type_length = strlen(content_type);
             debugs(2, "DEBUG Multipart Content-Type: %s\n", content_type);
             if (content_type_length > (LBUFSIZ - sizeof(uint32_t) - 26 - 4)) {
                 debugs(0, "ERROR Can't write multipart header to clamd socket: header too big.\n");
             } else {
-                int header_size =  26 + content_type_length + 4;
+                char *dest;
+                int header_size =  content_type_length + 30;
                 buf[0] = htonl(header_size);
-                dest = &buf[1];
-                memcpy(dest, "To: ClamAV\r\nContent-Type: ", 26);
-                dest += 26;
-                memcpy(dest, content_type, content_type_length);
-                dest += content_type_length;
-                memcpy(dest, "\r\n\r\n", 4);
+		snprintf(dest, header_size, "To: ClamAV\r\nContent-Type: %s\r\n\r\n", content_type);
+		memcpy(&buf[1],(const char*) dest, header_size);
                 ret = sendln (sockd,(const char *) buf, header_size + sizeof(uint32_t));
                 if ( ret <= 0 ) {
                     debugs(0, "ERROR Can't write multipart headers to clamd socket.\n");
@@ -829,6 +830,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
                 data->malware = clbuf;
+#ifdef HAVE_LIBARCHIVE
                 /* do as for banned files (libarchive) */
                 if ((recovervirus == 1) && (recover_path != NULL)) {
                     /* Change prefix of unique data file so it can be identified as a virus. */
@@ -842,6 +844,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     data->recover = bfileref;
                     debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", data->recover);
                 }
+#endif
                 if (!ci_req_sent_data(req)) {
                     generate_response_page(req, data);
                 }
@@ -859,6 +862,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     }
 
     if (data->virus) {
+#ifdef HAVE_LIBARCHIVE
         /* Copy viri just like banned files (libarchive) if requested by user. */
         if ((recovervirus == 1) && (recover_path != NULL)) {
             lseek(body->fd, 0, SEEK_SET);
@@ -868,12 +872,17 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         } else {
             debugs(1, "DEBUG Virus found, sending redirection header / error page.\n");
         }
+#else
+	debugs(1, "DEBUG Virus found, sending redirection header / error page.\n");
+#endif
         return CI_MOD_DONE;
     }
 
+#ifdef HAVE_LIBARCHIVE
     } else if (req_content_length > 0) { /* Checked for virus. */
         debugs(2, "DEBUG No virus check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) req_content_length, (int) maxsize);
     }
+#endif
 
     if (!ci_req_sent_data(req) && ci_req_allow204(req)) {
         debugs(2, "DEBUG Responding with allow 204\n");
@@ -1146,11 +1155,13 @@ int simple_pattern_compare(const char *str, const int type)
                     if (debug > 0)
                         debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
+#ifdef HAVE_LIBARCHIVE
                     /* return 1 if string matches banfile pattern (libarchive) */
                 case BANFILE:
                     if (debug > 0)
                         debugs(2, "DEBUG banfile (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
+#endif
                 default:
                     debugs(0, "ERROR unknown pattern match type: %s\n", str);
                     return -1;
@@ -1334,6 +1345,7 @@ int add_pattern(char *s, int level)
         return 1;
     }
 
+#ifdef HAVE_LIBARCHIVE
     /* Path for banned file recovery (libarchive support) */
     if(strcmp(type, "recoverpath") == 0) {
         recover_path = (char *) malloc (sizeof (char) * LOW_BUFF);
@@ -1379,6 +1391,25 @@ int add_pattern(char *s, int level)
         free(first);
         return 1;
     }
+
+    /* banmaxsize requires previously set maxsize (libarchive support) */
+    if (strcmp(type, "banmaxsize") == 0) {
+        banmaxsize = ci_strto_off_t(first, &end, 10);
+        if ((banmaxsize == 0 && errno != 0) || banmaxsize < 0)
+            banmaxsize = 0;
+        if (*end == 'k' || *end == 'K')
+            banmaxsize = banmaxsize * 1024;
+        else if (*end == 'm' || *end == 'M')
+            banmaxsize = banmaxsize * 1024 * 1024;
+        else if (*end == 'g' || *end == 'G')
+            banmaxsize = banmaxsize * 1024 * 1024 * 1024;
+        max_maxsize = max(maxsize, banmaxsize);
+        free(type);
+        free(first);
+        return 1;
+    }
+
+#endif
 
     /* Path to chained other Squid redirector, mostly SquidGuard */
     if(strcmp(type, "squidguard") == 0) {
@@ -1517,23 +1548,6 @@ int add_pattern(char *s, int level)
         return 1;
     }
 
-    /* banmaxsize requires previously set maxsize (libarchive support) */
-    if (strcmp(type, "banmaxsize") == 0) {
-        banmaxsize = ci_strto_off_t(first, &end, 10);
-        if ((banmaxsize == 0 && errno != 0) || banmaxsize < 0)
-            banmaxsize = 0;
-        if (*end == 'k' || *end == 'K')
-            banmaxsize = banmaxsize * 1024;
-        else if (*end == 'm' || *end == 'M')
-            banmaxsize = banmaxsize * 1024 * 1024;
-        else if (*end == 'g' || *end == 'G')
-            banmaxsize = banmaxsize * 1024 * 1024 * 1024;
-        max_maxsize = max(maxsize, banmaxsize);
-        free(type);
-        free(first);
-        return 1;
-    }
-
     /* force case insensitive pattern matching */
     /* so aborti, contenti, regexi are now obsolete */
     regex_flags |= REG_ICASE;
@@ -1544,10 +1558,12 @@ int add_pattern(char *s, int level)
         currItem.type = ABORT;
     } else if (strcmp(type, "abortcontent") == 0) {
         currItem.type = ABORTCONTENT;
+#ifdef HAVE_LIBARCHIVE
     /* libarchive support */
     } else if (strcmp(type, "ban_archive_entry") == 0) {
         currItem.type = BANFILE;
         banfile = 1;
+#endif
     } else if(strcmp(type, "whitelist") == 0) {
         currItem.type = WHITELIST;
 	if (level == 0) {
@@ -1715,8 +1731,10 @@ void free_global()
     free(clamd_port);
     free(clamd_curr_ip);
     free(redirect_url);
+#ifdef HAVE_LIBARCHIVE
     /* libarchive support */
     free(recover_path);
+#endif
     if (patterns != NULL) {
         while (pattc > 0) {
             pattc--;
@@ -2188,6 +2206,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
     return 0;
 }
 
+#ifdef HAVE_LIBARCHIVE
 /**
  * returns file name extension (libarchive)
  */
@@ -2254,3 +2273,4 @@ int has_invalid_chars(const char *inv_chars, const char *target)
     debugs(4, "LIBARCHIVE DEBUG: no troublesome chars in [%s]\n", target);
     return 0;
 }
+#endif
