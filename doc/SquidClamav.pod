@@ -521,7 +521,7 @@ ClamAV 0.95 introduced support for Google Safe Browsing database.  The database
 is packed inside a CVD file and distributed through our mirror network as
 safebrowsing.cvd. This feature is disabled by default on all clamav installations.
 
-In order to enable this feature, you must first add “SafeBrowsing Yes” to freshclam.conf.
+In order to enable this feature, you must first add "SafeBrowsing Yes" to freshclam.conf.
 There is no option in clamd.conf. If the engine finds Google Safe Browsing files in the
 database directory, ClamAV will enable safe browsing. To turn it off you need to update
 freshclam.conf and remove the safebrowsing files from the database directory before
@@ -584,6 +584,69 @@ allow your users to view streamed video instantly.
 As said above, the 'maxsize' directive allows you not to scan a file when the
 content-length of the file is bigger than the defined value. By default there's
 no size limit.
+
+=back
+
+=head3 Libarchive support
+
+Allow squidclamav to uncompress archives and filter according to user-defined
+rules before passing them to clamav. See directives bellow for more details.
+
+=over 4
+
+=item enable_libarchive
+
+Enable/disable use of libarchive by SquidClamav. Disabled by default.
+Note that if libarchive is not available on your server enabling this
+feature will have no effect. When libarchive headers are not present
+the code to support libarchive in squidclamav is not compiled.
+
+=item ban_archive_entry
+
+Block matching archive entries. For example: zip files containing threats
+such as ransomeware that are not yet detected by clamav or other antivirus
+software (typically 5KB zip files containing a cab file or a vbe script).
+Here is the value set in the configuration file if enabled:
+
+    ban_archive_entry ^.*\.(ade|adp|app|asd|asf|asx|bas|bat|cab|chm|cmd|com|cpl|crt|dll|exe|fxp|hlp|hta|hto|inf|ini|ins|isp|jse?|lib|lnk|mdb|mde|msc|msi|msp|mst|ocx|pcd|pif|prg|reg|scr|sct|sh|shb|shs|sys|url|vb|vbe|vbs|vcs|vxd|wmd|wms|wmz|wsc|wsf|wsh)$
+
+=item ban_max_entries
+
+Maximum number of entries in an archive in order to block it if there's at
+least one match. Archives with more than ban_max_entries will not be blocked
+even if there are matches. A value of 0 (or commented) will ignore the number
+of entries in an archive. Suggested value: 1.
+
+=item ban_max_matched_entries
+
+Maximum number of matched entries in an archive in order to block it. Archives
+with more than ban_max_matched_entries matches will not be blocked.  A value
+of 0 (or commented) will ban an archive when there's at least one entry match.
+Suggested value: 1.
+
+=item banmaxsize
+
+Maximum size of an archive that may be opened. Any file bigger that this value
+will not be scanned.  Suggested value: 2M.
+
+=item recoverpath
+
+Path where banned archives are stored (libarchive). Hard-coded file format:
+
+    banned_USERNAME_CLIENTIP_UNIXTIME_RAND(99).FILEEXTENSION
+
+USERNAME and CLIENTIP are available when enabling icap_send_client_ip and
+icap_send_client_username in squid.conf. Check clwarn.cgi example to see how
+you can retrieve the file name and serve it via http.
+
+=item recovervirus
+
+Enable if virus files should also be copied to recoverpath. Hard-coded file
+format:
+
+    virus_USERNAME_CLIENTIP_UNIXTIME_RAND(99).FILEEXTENSION
+
+Otherwise only archives containing ban_archive_entry matches will be copied.
 
 =back
 
