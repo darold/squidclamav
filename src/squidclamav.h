@@ -68,6 +68,8 @@ extern char *strdup (char *s) /*@*/ ;
 #define NORMAL_BUFF 4096
 #define MAX_URL  8192
 #define MAX_LOGIN_SZ 128
+#define LBUFSIZ 32768
+
 
 struct IN_BUFF {
     char url[MAX_URL];

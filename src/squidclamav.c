@@ -59,8 +59,6 @@
 #include <archive_entry.h>
 #endif
 
-#define LBUFSIZ		32768
-
 /* Structure used to store information passed throught the module methods */
 typedef struct av_req_data{
     ci_simple_file_t *body;
@@ -491,6 +489,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    /* Get the content type header */
 	    if ((content_type = http_content_type(req)) != NULL) {
+                while(*content_type == ' ' || *content_type == '\t') content_type++;
 		debugs(2, "DEBUG Content-Type: %s\n", content_type);
 		/* Check the Content-Type against SquidClamav abortcontent */
 		if (simple_pattern_compare(content_type, ABORTCONTENT)) {
@@ -635,7 +634,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 {
     av_req_data_t *data = ci_service_data(req);
     ci_simple_file_t *body;
-    char cbuff[MAX_URL_SIZE];
+    char cbuff[LBUFSIZ];
     char clbuf[SMALL_BUFF];
     const char *content_type;
 
@@ -774,17 +773,17 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	/* Check the Content-Type is of type multipart/ */
         while(*content_type == ' ' || *content_type == '\t') content_type++;
         if(strncmp(content_type, "multipart/", 10) == 0) {
-            uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
             int content_type_length = strlen(content_type);
-            debugs(2, "DEBUG Multipart Content-Type: %s\n", content_type);
-            if (content_type_length > (LBUFSIZ - sizeof(uint32_t) - 26 - 4)) {
+            debugs(2, "DEBUG Found multipart Content-Type: %s\n", content_type);
+            if (content_type_length > (LBUFSIZ - sizeof(uint32_t) - 30)) {
                 debugs(0, "ERROR Can't write multipart header to clamd socket: header too big.\n");
             } else {
-                char *dest;
-                int header_size =  content_type_length + 30;
+                uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
+                int header_size = content_type_length + 30;
                 buf[0] = htonl(header_size);
-		snprintf(dest, header_size, "To: ClamAV\r\nContent-Type: %s\r\n\r\n", content_type);
-		memcpy(&buf[1],(const char*) dest, header_size);
+                memset(cbuff, 0, sizeof(cbuff));
+		snprintf(cbuff, header_size, "To: ClamAV\r\nContent-Type: %s\r\n\r\n", content_type);
+		memcpy(&buf[1],(const char*) cbuff, header_size);
                 ret = sendln (sockd,(const char *) buf, header_size + sizeof(uint32_t));
                 if ( ret <= 0 ) {
                     debugs(0, "ERROR Can't write multipart headers to clamd socket.\n");
@@ -2248,7 +2247,7 @@ int copy_file(int fd_src, const char  *fname_dst)
     total_read = 0;
     while (nread = read(fd_src, buf, sizeof(buf)), nread > 0) {
         total_read += nread;
-        debugs(3, "LIBARCHIVE DEBUG: read [%d] bytes of data\n", nread);
+        debugs(3, "LIBARCHIVE DEBUG: read [%d] bytes of data\n", (int) nread);
         char *out_ptr = buf;
         ssize_t written;
         do {
@@ -2256,14 +2255,14 @@ int copy_file(int fd_src, const char  *fname_dst)
             if (written >= 0) {
                 nread -= written;
                 out_ptr += written;
-                debugs(3, "LIBARCHIVE DEBUG: [%d] bytes written\n", written);
+                debugs(3, "LIBARCHIVE DEBUG: [%d] bytes written\n", (int) written);
             } else {
-                debugs(3, "LIBARCHIVE DEBUG: write error [%d]\n", written);
+                debugs(3, "LIBARCHIVE DEBUG: write error [%d]\n", (int) written);
             }
         } while (nread > 0);
     }
 
-    debugs(3, "LIBARCHIVE DEBUG: closing [%s] ([%d] bytes)\n", fname_dst, total_read);
+    debugs(3, "LIBARCHIVE DEBUG: closing [%s] ([%d] bytes)\n", fname_dst, (int) total_read);
     close(fd_dst);
     return  0;
 }
