@@ -3,7 +3,7 @@ Upstream-Name: c-icap-modules
 Source: http://c-icap.sourceforge.net/
 
 Files: *
-Copyright: 2005-2016 Gilles Darold - All rights reserved.
+Copyright: 2005-2019 Gilles Darold - All rights reserved.
 	   2004-2008 Christos Tsantilas
 License: GPL-2+
 
