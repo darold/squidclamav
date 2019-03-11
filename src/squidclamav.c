@@ -60,7 +60,7 @@
 #endif
 
 /* Structure used to store information passed throught the module methods */
-typedef struct av_req_data{
+typedef struct av_req_data {
     ci_simple_file_t *body;
     ci_request_t *req;
     ci_membuf_t *error_page;
@@ -71,7 +71,6 @@ typedef struct av_req_data{
     char *user;
     char *clientip;
     char *malware;
-    char *recover; /* libarchive support */
 } av_req_data_t;
 
 static int SEND_PERCENT_BYTES = 0;
@@ -134,14 +133,14 @@ int logredir = 0;
 int dnslookup = 1;
 int safebrowsing = 0;
 int multipart = 0;
+ci_off_t banmaxsize = 0;
+/* Default scan mode ScanAllExcept */
+int scan_mode = 1;
 
 #ifdef HAVE_LIBARCHIVE
 /* vars for libarchive support */
 int enable_libarchive = 0;
 int banfile = 0;
-ci_off_t req_content_length = 0;
-ci_off_t banmaxsize = 0;
-ci_off_t max_maxsize = 0;
 char *recover_path = NULL;
 int recovervirus = 1;
 int ban_max_entries = 0;
@@ -157,13 +156,9 @@ FILE *sgfpr = NULL;
 
 /* --------------- URL CHECK --------------------------- */
 
-#define MAX_URL_SIZE  8192
-#define MAX_METHOD_SIZE  16
-#define SMALL_BUFF 1024
-
 struct http_info {
     char method[MAX_METHOD_SIZE];
-    char url[MAX_URL_SIZE];
+    char url[MAX_URL];
 };
 
 int extract_http_info(ci_request_t *, ci_headers_list_t *, struct http_info *);
@@ -233,12 +228,13 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
     register_command("squidclamav:cfgreload", MONITOR_PROC_CMD | CHILDS_PROC_CMD, cfgreload_command);
 
 
+    /* allocate memory for some global variables */
+    clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
+    memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
+
     /*********************
       read config files
      ********************/
-    clamd_curr_ip = (char *) malloc (sizeof (char) * 128);
-    memset(clamd_curr_ip, 0, sizeof (char) * 128);
-
     if (load_patterns() == 0) {
         return CI_ERROR;
     }
@@ -266,6 +262,7 @@ void cfgreload_command(char *name, int type, char **argv)
     dnslookup = 1;
     safebrowsing = 0;
     multipart = 0;
+    scan_mode = 1;
 
 #ifdef HAVE_LIBARCHIVE
     /* libarchive */
@@ -276,8 +273,11 @@ void cfgreload_command(char *name, int type, char **argv)
     ban_max_matched_entries = 0;
 #endif
 
+    /* reallocate memory for some global variables removed in free_global() */
     clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
     memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
+
+    /* read configuration file */
     if (load_patterns() == 0)
         debugs(0, "FATAL reload configuration command failed!\n");
     if (squidclamav_xdata)
@@ -344,7 +344,8 @@ void *squidclamav_init_request_data(ci_request_t * req)
 void squidclamav_release_request_data(void *data)
 {
 
-    if (data) {
+    if (data)
+    {
         debugs(1, "DEBUG Releasing request data.\n");
 
         if (((av_req_data_t *) data)->body)
@@ -354,8 +355,7 @@ void squidclamav_release_request_data(void *data)
         if (((av_req_data_t *) data)->user)
             ci_buffer_free(((av_req_data_t *) data)->user);
         if (((av_req_data_t *) data)->clientip)
-                ci_buffer_free(((av_req_data_t *) data)->clientip);
-
+            ci_buffer_free(((av_req_data_t *) data)->clientip);
         if (((av_req_data_t *) data)->error_page)
             ci_membuf_free(((av_req_data_t *) data)->error_page);
 
@@ -373,8 +373,6 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     struct hostent *clientname;
     unsigned long ip;
     const char *username;
-    const char *content_type;
-    ci_off_t content_length = 0;
     int chkipdone = 0;
 
     debugs(1, "DEBUG processing preview header.\n");
@@ -385,14 +383,25 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
     /* Extract the HTTP header from the request */
     if ((req_header = ci_http_request_headers(req)) != NULL) {
+	    int scanit = 0;
+	    int content_length = 0;
+	    const char *content_type = NULL;
 
 	    /* Get the Authenticated user */
 	    if ((username = ci_headers_value(req->request_header, "X-Authenticated-User")) != NULL) {
 		debugs(2, "DEBUG X-Authenticated-User: %s\n", username);
-		/* if a TRUSTUSER match => no squidguard and no virus scan */
-		if (simple_pattern_compare(username, TRUSTUSER) == 1) {
-		    debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
-		    return CI_MOD_ALLOW204;
+		if (scan_mode == SCAN_ALL) {
+		    /* if a TRUSTUSER match => no squidguard and no virus scan */
+		    if (simple_pattern_compare(username, TRUSTUSER) == 1) {
+		        debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+		        return CI_MOD_ALLOW204;
+		    }
+		} else {
+		    /* if a UNTRUSTUSER match => squidguard and virus scan */
+		    if (simple_pattern_compare(username, UNTRUSTUSER) == 1) {
+		        debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+			scanit = 1;
+		    }
 		}
 	    }
 
@@ -404,20 +413,36 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		if (dnslookup == 1) {
 		    if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
 			if (clientname->h_name != NULL) {
-			    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
-			    if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
-				return CI_MOD_ALLOW204;
+		            if (scan_mode == SCAN_ALL) {
+			        /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
+				    debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				    return CI_MOD_ALLOW204;
+			        }
+			    } else {
+			        /* if a UNTRUSTCLIENT match => squidguard and virus scan */
+			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
+				    debugs(1, "DEBUG squidguard and antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+			            scanit = 1;
+			        }
 			    }
 			    chkipdone = 1;
 			}
 		    }
 		}
 		if (chkipdone == 0) {
-		    /* if a TRUSTCLIENT match => no squidguard and no virus scan */
-		    if (client_pattern_compare(clientip, NULL) > 0) {
-			debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
-			return CI_MOD_ALLOW204;
+		    if (scan_mode == SCAN_ALL) {
+		        /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+		        if (client_pattern_compare(clientip, NULL) > 0) {
+			    debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+			    return CI_MOD_ALLOW204;
+		        }
+		    } else {
+		        /* if a UNTRUSTCLIENT match => squidguard and virus scan */
+		        if (client_pattern_compare(clientip, NULL) > 0) {
+			    debugs(1, "DEBUG squidguard and antivir check (UNTRUSTCLIENT match) for client: %s\n", clientip);
+			    scanit = 1;
+		        }
 		    }
 		}
 	    }
@@ -431,10 +456,24 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    debugs(2, "DEBUG URL requested: %s\n", httpinf.url);
 
-	    /* Check the URL against SquidClamav Whitelist */
-	    if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
-		debugs(1, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+	    /* CONNECT (https) and OPTIONS methods can not be scanned so abort */
+	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
+		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
 		return CI_MOD_ALLOW204;
+	    }
+
+	    if (scan_mode == SCAN_ALL) {
+	        /* Check the URL against SquidClamav Whitelist */
+	        if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
+		    debugs(1, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+		    return CI_MOD_ALLOW204;
+	        }
+	    } else {
+	        /* Check the URL against SquidClamav blacklist */
+	        if (simple_pattern_compare(httpinf.url, BLACKLIST) == 1) {
+		    debugs(1, "DEBUG antivir check (BLACKLIST match) for url: %s\n", httpinf.url);
+		    scanit = 1;
+	        }
 	    }
 
 	    /* set null client username to - */
@@ -450,16 +489,18 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
 	    }
 
-	    /* CONNECT (https) and OPTIONS methods can not be scanned so abort */
-	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
-		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
-		return CI_MOD_ALLOW204;
-	    }
-
-	    /* Check the URL against SquidClamav abort */
-	    if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
-		debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
-		return CI_MOD_ALLOW204;
+	    if (scan_mode == SCAN_ALL) {
+	        /* Check the URL against SquidClamav abort */
+	        if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
+		    debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
+		    return CI_MOD_ALLOW204;
+	        }
+	    } else {
+	        /* Check the URL against SquidClamav scan */
+	        if (simple_pattern_compare(httpinf.url, SCAN) == 1) {
+		    debugs(1, "DEBUG antivir check (SCAN match) for url: %s\n", httpinf.url);
+		    scanit = 1;
+	        }
 	    }
 
 	    if (safebrowsing == 1) {
@@ -468,34 +509,36 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		    return CI_MOD_CONTINUE;
 		}
 	    }
-	    /* Get the content length header */
-	    content_length = ci_http_content_length(req);
-	    debugs(2, "DEBUG Content-Length: %" PRINTF_OFF_T "\n", (CAST_OFF_T) content_length);
-
-#ifdef HAVE_LIBARCHIVE
-	    /* libarchive */
-	    if (enable_libarchive > 0) {
-	        req_content_length = content_length;
-	        if ((content_length > 0) && (max_maxsize > 0) && (content_length >= max_maxsize)) {
-		    debugs(2, "DEBUG No antivir or archive check, content-length higher than highest maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) max_maxsize);
-		    return CI_MOD_ALLOW204;
-	        }
-	    }
-#endif
-	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
-		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) maxsize);
-		return CI_MOD_ALLOW204;
-	    }
 
 	    /* Get the content type header */
 	    if ((content_type = http_content_type(req)) != NULL) {
                 while(*content_type == ' ' || *content_type == '\t') content_type++;
 		debugs(2, "DEBUG Content-Type: %s\n", content_type);
-		/* Check the Content-Type against SquidClamav abortcontent */
-		if (simple_pattern_compare(content_type, ABORTCONTENT)) {
-		    debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
-		    return CI_MOD_ALLOW204;
+		if (scan_mode == SCAN_ALL) {
+		    /* Check the Content-Type against SquidClamav abortcontent */
+		    if (simple_pattern_compare(content_type, ABORTCONTENT)) {
+		        debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
+		        return CI_MOD_ALLOW204;
+		    }
+		} else {
+		    /* Check the Content-Type against SquidClamav scancontent */
+		    if (simple_pattern_compare(content_type, SCANCONTENT)) {
+		        debugs(1, "DEBUG No antivir check (SCANCONTENT match) for content-type: %s\n", content_type);
+		        scanit = 1;
+		    }
 		}
+	    }
+
+	    /* In ScanNothingExcept mode get out if we have not detected something to scan */
+	    if (scan_mode == SCAN_NONE && scanit == 0) {
+	        return CI_MOD_ALLOW204;
+	    }
+
+	    /* Get the content length header */
+	    content_length = ci_http_content_length(req);
+	    if ((content_length > 0) && (maxsize > 0) && (content_length >= maxsize)) {
+		debugs(2, "DEBUG No antivir check, content-length upper than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) maxsize);
+		return CI_MOD_ALLOW204;
 	    }
 
 	    /* No data, so nothing to scan */
@@ -512,7 +555,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    data->clientip = ci_buffer_alloc(strlen(clientip)+1);
 	    strcpy(data->clientip, clientip);
-	    
+ 
     } else {
 
 	debugs(1, "WARNING bad http header, can not check URL, Content-Type and Content-Length.\n");
@@ -636,7 +679,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     ci_simple_file_t *body;
     char cbuff[LBUFSIZ];
     char clbuf[SMALL_BUFF];
-    const char *content_type;
+    const char *content_type = NULL;
+    int content_length = 0;
 
     ssize_t ret;
     int nbread = 0;
@@ -670,8 +714,11 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     It can be used to put banned files and viri in quarantine directory. */
     char bfileref[SMALL_BUFF];
 
-    if (enable_libarchive > 0 && (banfile == 1) && (req_content_length > 0) && (req_content_length <= banmaxsize)) {
-        debugs(1, "LIBARCHIVE DEBUG: Scanning for archives supported by libarchive (content-length [%" PRINTF_OFF_T "] <= max size [%d])\n", (CAST_OFF_T) req_content_length, (int) banmaxsize);
+    /* Get content length*/
+    content_length = ci_http_content_length(req);
+
+    if (enable_libarchive > 0 && (banfile == 1) && (content_length > 0) && (content_length <= banmaxsize)) {
+        debugs(1, "LIBARCHIVE DEBUG: Scanning for archives supported by libarchive (content-length [%" PRINTF_OFF_T "] <= max size [%d])\n", (CAST_OFF_T) content_length, (int) banmaxsize);
 
         lseek(body->fd, 0, SEEK_SET);
 
@@ -680,7 +727,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         int r;
         int archive_entries = 0;
         int matched_archive_entries = 0;
-        char descr[2048];
+        char descr[SMALL_BUFF];
 
         a = archive_read_new();
         archive_read_support_filter_all(a);
@@ -700,7 +747,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     debugs(3, "LIBARCHIVE INFO: Matched [%s] (%d)\n", archive_entry_pathname(entry), data->virus);
                     /* inform user why this file was banned */
                     snprintf(descr, sizeof(descr), "BANNED:%s", archive_entry_pathname(entry));
-                    data->malware = descr;
+		    data->malware = ci_buffer_alloc(strlen(descr)+1);
+		    strcpy(data->malware, descr);
                     if ((ban_max_entries == 0) && (ban_max_matched_entries == 0)) {
                         break;
                     }
@@ -722,7 +770,11 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             if (recover_path != NULL) {
                 /* try to generate unique file name */
                 srand(time(NULL));
-                /* Avoid char problems in original file name and improve admin searchability by setting file name format to web_USER_CLIENTIP_UNIXTIME_RAND(0-99).FILEEXT */
+                /*
+		 * Avoid char problems in original file name and improve
+		 * admin searchability by setting file name format to
+		 * web_USER_CLIENTIP_UNIXTIME_RAND(0-99).FILEEXT
+		 */
                 if (has_invalid_chars(INVALID_CHARS, get_filename_ext(data->url)) == 1) {
                     debugs(4, "LIBARCHIVE DEBUG: setting up file name without extension.\n");
                     snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d", PREFIX_BANNED, data->user, data->clientip, (int)time(NULL), (int)rand() % 99);
@@ -730,11 +782,10 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     debugs(4, "LIBARCHIVE DEBUG: setting up file name with extension.\n");
                     snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d.%s", PREFIX_BANNED, data->user, data->clientip, (int)time(NULL), (int)rand() % 99, get_filename_ext(data->url));
                 }
-                data->recover = bfileref;
-                debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", data->recover);
+                debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", bfileref);
                 /* copy file to quarantine dir */
                 lseek(body->fd, 0, SEEK_SET);
-                char targetf[MAX_URL_SIZE];
+                char targetf[MAX_URL];
                 snprintf(targetf, sizeof(targetf), "%s/%s", recover_path, bfileref);
                 debugs(1, "LIBARCHIVE DEBUG Match found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
                 if (!ci_req_sent_data(req)) {
@@ -745,12 +796,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             }
             return CI_MOD_DONE;
         }
-    } else if (enable_libarchive > 0 && req_content_length > 0) {
-        debugs(2, "LIBARCHIVE DEBUG No archive check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) req_content_length, (int) banmaxsize);
+    } else if (enable_libarchive > 0 && content_length > 0) {
+        debugs(2, "LIBARCHIVE DEBUG No archive check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) banmaxsize);
     }
 
     /* Now check for virus. */
-    if ( enable_libarchive == 0 || ( (req_content_length > 0) && (maxsize >= 0) && (req_content_length <= maxsize) ) ) {
+    if ( enable_libarchive == 0 || ( (content_length > 0) && (maxsize >= 0) && (content_length <= maxsize) ) ) {
 #endif
 
     if ((sockd = dconnect ()) < 0) {
@@ -767,19 +818,18 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     debugs(1, "DEBUG Ok connected to clamd.\n");
 
-    /*-----------------------------------------------------*/
-
-    if ((multipart == 1) && (content_type = http_content_type(req)) != NULL) {
-	/* Check the Content-Type is of type multipart/ */
-        while(*content_type == ' ' || *content_type == '\t') content_type++;
-        if(strncmp(content_type, "multipart/", 10) == 0) {
-            int content_type_length = strlen(content_type);
+    /* Check the Content-Type is of type multipart */
+    if (multipart == 1 && ((content_type = http_content_type(req)) != NULL)) {
+	while(*content_type == ' ' || *content_type == '\t') content_type++;
+	debugs(2, "DEBUG Content-Type: %s\n", content_type);
+        if (strncmp(content_type, "multipart/", 10) == 0) {
+            int len = strlen(content_type);
             debugs(2, "DEBUG Found multipart Content-Type: %s\n", content_type);
-            if (content_type_length > (LBUFSIZ - sizeof(uint32_t) - 30)) {
+            if (len > (LBUFSIZ - sizeof(uint32_t) - 30)) {
                 debugs(0, "ERROR Can't write multipart header to clamd socket: header too big.\n");
             } else {
                 uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
-                int header_size = content_type_length + 30;
+                int header_size = len + 30;
                 buf[0] = htonl(header_size);
                 memset(cbuff, 0, sizeof(cbuff));
 		snprintf(cbuff, header_size, "To: ClamAV\r\nContent-Type: %s\r\n\r\n", content_type);
@@ -832,7 +882,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
-                data->malware = clbuf;
+		data->malware = ci_buffer_alloc(strlen(clbuf)+1);
+		strcpy(data->malware, clbuf);
 #ifdef HAVE_LIBARCHIVE
                 /* do as for banned files (libarchive) */
                 if (enable_libarchive > 0 && (recovervirus == 1) && (recover_path != NULL)) {
@@ -844,8 +895,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     } else {
                         snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d.%s", PREFIX_VIRUS, data->user, data->clientip, (int)time(NULL), (int)rand() % 99, get_filename_ext(data->url));
                     }
-                    data->recover = bfileref;
-                    debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", data->recover);
+                    debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", bfileref);
                 }
 #endif
                 if (!ci_req_sent_data(req)) {
@@ -870,7 +920,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	if (enable_libarchive > 0) {
             if ((recovervirus == 1) && (recover_path != NULL)) {
                 lseek(body->fd, 0, SEEK_SET);
-                char targetf[MAX_URL_SIZE];
+                char targetf[MAX_URL];
                 snprintf(targetf, sizeof(targetf), "%s/%s", recover_path, bfileref);
                 debugs(1, "DEBUG Virus found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
             } else {
@@ -884,8 +934,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     }
 
 #ifdef HAVE_LIBARCHIVE
-    } else if (enable_libarchive > 0 && req_content_length > 0) { /* Checked for virus. */
-        debugs(2, "DEBUG No virus check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) req_content_length, (int) maxsize);
+    } else if (enable_libarchive > 0 && content_length > 0) { /* Checked for virus. */
+        debugs(2, "DEBUG No virus check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) maxsize);
     }
 #endif
 
@@ -1145,20 +1195,39 @@ int simple_pattern_compare(const char *str, const int type)
                     if (debug > 0)
                         debugs(2, "DEBUG whitelist (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
+                case BLACKLIST:
+                    if (debug > 0)
+                        debugs(2, "DEBUG blacklist (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
                     /* return 1 if string matches abort pattern */
                 case ABORT:
                     if (debug > 0)
                         debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
+                    /* return 1 if string matches scan pattern */
+                case SCAN:
+                    if (debug > 0)
+                        debugs(2, "DEBUG scan (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches trustuser pattern */
                 case TRUSTUSER:
                     if (debug > 0)
                         debugs(2, "DEBUG trustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
+                    /* return 1 if string matches untrustuser pattern */
+                case UNTRUSTUSER:
+                    if (debug > 0)
+                        debugs(2, "DEBUG untrustuser (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
                     /* return 1 if string matches abortcontent pattern */
                 case ABORTCONTENT:
                     if (debug > 0)
                         debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
+                    /* return 1 if string matches scancontent pattern */
+                case SCANCONTENT:
+                    if (debug > 0)
+                        debugs(2, "DEBUG scancontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
 #ifdef HAVE_LIBARCHIVE
                     /* return 1 if string matches banfile pattern (libarchive) */
@@ -1170,7 +1239,7 @@ int simple_pattern_compare(const char *str, const int type)
                 default:
                     debugs(0, "ERROR unknown pattern match type: %s\n", str);
                     return -1;
-            }
+	    }
         }
     }
 
@@ -1184,7 +1253,7 @@ int client_pattern_compare(const char *ip, char *name)
 
     /* pass througth all regex pattern */
     for (i = 0; i < pattc; i++) {
-        if (patterns[i].type == TRUSTCLIENT) {
+        if ( (scan_mode == SCAN_ALL) && (patterns[i].type == TRUSTCLIENT) ) {
             /* Look at client ip pattern matching */
             /* return 1 if string matches ip TRUSTCLIENT pattern */
             if (regexec(&patterns[i].regexv, ip, 0, 0, 0) == 0) {
@@ -1198,7 +1267,21 @@ int client_pattern_compare(const char *ip, char *name)
                     debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
-        }
+        } else if ( (scan_mode == SCAN_NONE) && (patterns[i].type == UNTRUSTCLIENT) ) {
+            /* Look at client ip pattern matching */
+            /* return 1 if string doesn't matches ip UNTRUSTCLIENT pattern */
+            if (regexec(&patterns[i].regexv, ip, 0, 0, 0) != 0) {
+                if (debug != 0)
+                    debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, ip);
+                return 1;
+                /* Look at client name pattern matching */
+                /* return 2 if string doesn't matches fqdn UNTRUSTCLIENT pattern */
+            } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) != 0)) {
+                if (debug != 0)
+                    debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, name);
+                return 2;
+            }
+	}
     }
 
     /* return 0 otherwise */
@@ -1414,7 +1497,7 @@ int add_pattern(char *s, int level)
             banmaxsize = banmaxsize * 1024 * 1024;
         else if (*end == 'g' || *end == 'G')
             banmaxsize = banmaxsize * 1024 * 1024 * 1024;
-        max_maxsize = max(maxsize, banmaxsize);
+        maxsize = max(maxsize, banmaxsize);
         free(type);
         free(first);
         return 1;
@@ -1554,21 +1637,56 @@ int add_pattern(char *s, int level)
             maxsize = maxsize * 1024 * 1024;
         else if (*end == 'g' || *end == 'G')
             maxsize = maxsize * 1024 * 1024 * 1024;
+        maxsize = max(maxsize, banmaxsize);
         free(type);
         free(first);
         return 1;
     }
+
+    /* Scan mode */
+    if(strcmp(type, "scan_mode") == 0) {
+	char *scan_type = (char *) malloc (sizeof (char) * LOW_BUFF);
+        if(scan_type == NULL) {
+            fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
+            free(scan_type);
+            free(type);
+            free(first);
+            return 0;
+        } else {
+                debugs(0, "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU %s\n", first);
+            if (strncmp(first, "ScanNothingExcept", sizeof (char) * LOW_BUFF) == 0) {
+                scan_mode = SCAN_NONE;
+                debugs(0, "LOG setting squidclamav scan mode to 'ScanNothingExcept'.\n");
+	    } else if (strncmp(first, "ScanAllExcept", sizeof (char) * LOW_BUFF) == 0) {
+                scan_mode = SCAN_ALL;
+                debugs(0, "LOG setting squidclamav scan mode to 'ScanAllExcept'.\n");
+            } else if (strlen(first) > 0) {
+                fprintf(stderr, "incorrect value in scan_mode, failling back to ScanAllExcept mode.\n");
+                scan_mode = SCAN_ALL;
+            }
+        }
+        free(scan_type);
+        free(type);
+        free(first);
+        return 1;
+    }
+
 
     /* force case insensitive pattern matching */
     /* so aborti, contenti, regexi are now obsolete */
     regex_flags |= REG_ICASE;
     /* Add extended regex search */
     regex_flags |= REG_EXTENDED;
+
     /* Fill the pattern type */
     if (strcmp(type, "abort") == 0) {
         currItem.type = ABORT;
     } else if (strcmp(type, "abortcontent") == 0) {
         currItem.type = ABORTCONTENT;
+    } else if (strcmp(type, "scan") == 0) {
+        currItem.type = SCAN;
+    } else if (strcmp(type, "scancontent") == 0) {
+        currItem.type = SCANCONTENT;
 #ifdef HAVE_LIBARCHIVE
     /* libarchive support */
     } else if (strcmp(type, "ban_archive_entry") == 0) {
@@ -1584,10 +1702,23 @@ int add_pattern(char *s, int level)
 			return 1;
 		}
 	}
+    } else if(strcmp(type, "blacklist") == 0) {
+        currItem.type = BLACKLIST;
+	if (level == 0) {
+		if (readFileContent(first, type) == 1) {
+			free(type);
+			free(first);
+			return 1;
+		}
+	}
     } else if(strcmp(type, "trustuser") == 0) {
         currItem.type = TRUSTUSER;
     } else if(strcmp(type, "trustclient") == 0) {
         currItem.type = TRUSTCLIENT;
+    } else if(strcmp(type, "untrustuser") == 0) {
+        currItem.type = UNTRUSTUSER;
+    } else if(strcmp(type, "untrustclient") == 0) {
+        currItem.type = UNTRUSTCLIENT;
     } else if ( (strcmp(type, "squid_ip") != 0) && (strcmp(type, "squid_port") != 0) && (strcmp(type, "maxredir") != 0) && (strcmp(type, "useragent") != 0) && (strcmp(type, "trust_cache") != 0) ) {
         fprintf(stderr, "WARNING: Bad configuration keyword: %s\n", s);
         free(type);
@@ -1700,7 +1831,7 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
     /* Extract the URL part of the header */
     while (*str == ' ') str++;
     i = 0;
-    while (*str != ' ' && i < (MAX_URL_SIZE - 1)) {
+    while (*str != ' ' && i < (MAX_URL - 1)) {
         httpinf->url[i] = *str;
         i++;
         str++;
@@ -1781,8 +1912,8 @@ void generate_response_page(ci_request_t *req, av_req_data_t *data)
     chomp(data->malware);
 
     if (redirect_url != NULL) {
-        char *urlredir = (char *) malloc( sizeof(char)*MAX_URL_SIZE );
-        snprintf(urlredir, MAX_URL_SIZE, "%s?url=%s&source=%s&user=%s&virus=%s",
+        char *urlredir = (char *) malloc( sizeof(char)*MAX_URL );
+        snprintf(urlredir, MAX_URL, "%s?url=%s&source=%s&user=%s&virus=%s",
                  redirect_url, data->url, data->clientip, data->user, data->malware);
         if (logredir == 0)
             debugs((logredir==0) ? 1 : 0, "Virus redirection: %s.\n", urlredir);
@@ -1800,6 +1931,7 @@ int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
 {
    av_req_data_t *data = ci_service_data(req);
    char *malware = data->malware;
+
    if (strncmp("stream: ", malware, strlen("stream: ")) == 0)
        malware += 8;
 
@@ -1814,10 +1946,11 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     char buf[LOG_URL_SIZE];
     char *malware;
 
-    malware = (char *) malloc (sizeof (char) * LOW_BUFF);
-    memset(malware, 0, sizeof (char) * LOW_BUFF);
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
+
+    malware = (char *) malloc (sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1) );
+    memset(malware, 0, sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1));
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
 
     if ( ci_http_response_headers(req))
@@ -1883,14 +2016,15 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t * data)
 {
     int new_size = 0;
-    char buf[MAX_URL_SIZE];
+    char buf[MAX_URL];
     ci_membuf_t *error_page;
     char *malware;
 
-    malware = (char *) malloc (sizeof (char) * LOW_BUFF);
-    memset(malware, 0, sizeof (char) * LOW_BUFF);
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
+
+    malware = (char *) malloc (sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1) );
+    memset(malware, 0, sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1));
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
 
     new_size = strlen(blocked_header_message) + strlen(redirect) + strlen(blocked_footer_message) + 10;
@@ -1902,7 +2036,7 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
 
     debugs(2, "DEBUG creating redirection page\n");
 
-    snprintf(buf, MAX_URL_SIZE, "Location: %s", redirect);
+    snprintf(buf, MAX_URL, "Location: %s", redirect);
     /*strcat(buf, ";");*/
 
     debugs(3, "DEBUG %s\n", buf);
@@ -2130,7 +2264,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
                              const char *username)
 {
     av_req_data_t *data = ci_service_data(req);
-    char cbuff[MAX_URL_SIZE+60];
+    char cbuff[MAX_URL+60];
     char clbuf[SMALL_BUFF];
 
     ssize_t ret;
@@ -2157,7 +2291,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
     debugs(1, "DEBUG: Scanning url for Malware now\n");
     uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
     strcpy(cbuff, "From test\n\n<a href=");
-    strncat(cbuff, url, MAX_URL_SIZE);
+    strncat(cbuff, url, MAX_URL);
     strcat(cbuff, ">squidclamav-safebrowsing-test</a>\n");
     size_t sfsize = 0;
     sfsize = strlen(cbuff);
@@ -2182,7 +2316,8 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
                 debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
                     data->blocked = 1;
-                    data->malware = clbuf;
+		    data->malware = ci_buffer_alloc(strlen(clbuf)+1);
+		    strcpy(data->malware, clbuf);
 		    if (sockd > -1) {
 			debugs(1, "DEBUG Closing Clamd connection.\n");
 			close(sockd);
@@ -2234,7 +2369,7 @@ const char *get_filename_ext(const char *filename)
  */
 int copy_file(int fd_src, const char  *fname_dst)
 {
-    char buf[4096];
+    char buf[HIGH_BUFF];
     ssize_t nread, total_read;
     int fd_dst;
 

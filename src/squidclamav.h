@@ -53,6 +53,8 @@ void logit(char *, char *, ...);
 /************* Default Clamd configuration *************/
 #define CLAMD_SERVER "127.0.0.1" 
 #define CLAMD_PORT "3310" 
+#define SCAN_ALL 1
+#define SCAN_NONE 2
 
 # ifdef S_SPLINT_S
 extern char *strdup (char *s) /*@*/ ;
@@ -65,10 +67,13 @@ extern char *strdup (char *s) /*@*/ ;
 #define SMALL_CHAR 128
 #define LOW_BUFF 256
 #define SMALL_BUFF 1024
-#define NORMAL_BUFF 4096
+#define MEDIUM_BUFF 2048
+#define HIGH_BUFF 4096
 #define MAX_URL  8192
 #define MAX_LOGIN_SZ 128
 #define LBUFSIZ 32768
+#define MAX_METHOD_SIZE  16
+
 
 
 struct IN_BUFF {
@@ -80,15 +85,20 @@ struct IN_BUFF {
     char fqdn[1024];
 };
 
-#define WHITELIST    1
-#define TRUSTUSER    2
-#define TRUSTCLIENT  3
-#define ABORT        4
-#define ABORTCONTENT 5
+#define WHITELIST      1
+#define TRUSTUSER      2
+#define TRUSTCLIENT    3
+#define ABORT          4
+#define ABORTCONTENT   5
+#define SCAN           6
+#define SCANCONTENT    7
+#define BLACKLIST      8
+#define UNTRUSTUSER    9
+#define UNTRUSTCLIENT 10
 
 #ifdef HAVE_LIBARCHIVE
 /* libarchive */
-#define BANFILE      6
+#define BANFILE       100
 #define INVALID_CHARS "\\/:*?<>|"
 #define PREFIX_BANNED "banned_"
 #define PREFIX_VIRUS "virus_"
