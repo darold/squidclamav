@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 "2019-03-11" "perl v5.26.1" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 "2019-03-12" "perl v5.26.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -314,6 +314,8 @@ the 'url_rewrite_program' squid.conf directive:
 \&        url_rewrite_children 15
 \&        url_rewrite_access allow all
 .Ve
+.PP
+Call of squidguard from SquidClamav is no longer supported.
 .PP
 \fIC\-icap server installation/configuration\fR
 .IX Subsection "C-icap server installation/configuration"
@@ -588,7 +590,7 @@ To log every redirection enable the 'logredir' configuration directive:
 By default it is disabled as you can also log this information with the
 cgi-script or send an email.
 .PP
-Maximun file size scanned
+\fIMaximun file size scanned\fR
 .IX Subsection "Maximun file size scanned"
 .PP
 The maxsize directive allows to disable virus scan completely for files
@@ -603,7 +605,7 @@ If you want to abort virus scan after a certain amount of data you must
 take a look at the clamd configuration directive 'StreamMaxLength' that
 will close a stream when the given size is reached.
 .PP
-\s-1DNS\s0 lookup of client \s-1IP\s0 address
+\fI\s-1DNS\s0 lookup of client \s-1IP\s0 address\fR
 .IX Subsection "DNS lookup of client IP address"
 .PP
 Directive dnslookup allow you to enable / disable \s-1DNS\s0 lookup of all client
@@ -616,6 +618,22 @@ Directive dnslookup allow you to enable / disable \s-1DNS\s0 lookup of all clien
 to preserve backward compatibility. You should deactivate this feature if
 you don't use trustclient with hostname in the regexp or if you don't have
 a \s-1DNS\s0 on your network. Disabling it will also speed up squidclamav.
+.PP
+\fIMultipart content\fR
+.IX Subsection "Multipart content"
+.PP
+Clamd supports decoding email style multipart content and scan each part.
+Unless clamd receives a Content-Type header it can't know how to break up
+the multipart content and so it tries to scan the entire body as one file,
+even if parts are base64 encoded. Enabling the 'multipart' directive:
+.PP
+.Vb 1
+\&        multipart 0
+.Ve
+.PP
+will force detection of multipart content and sends a To: and Content-Type
+header to clamd before the rest of the body. Disabled by default for backward
+compatibility.
 .PP
 \fISafebrowsing\fR
 .IX Subsection "Safebrowsing"

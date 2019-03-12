@@ -171,6 +171,8 @@ USAGE
             url_rewrite_children 15
             url_rewrite_access allow all
 
+    Call of squidguard from SquidClamav is no longer supported.
+
    C-icap server installation/configuration
     If you don't have package solutions or encounter problems when
     installing SquidClamav I recommend you to install the c-icap server from
@@ -417,6 +419,19 @@ CONFIGURATION
     to preserve backward compatibility. You should deactivate this feature
     if you don't use trustclient with hostname in the regexp or if you don't
     have a DNS on your network. Disabling it will also speed up squidclamav.
+
+   Multipart content
+    Clamd supports decoding email style multipart content and scan each
+    part. Unless clamd receives a Content-Type header it can't know how to
+    break up the multipart content and so it tries to scan the entire body
+    as one file, even if parts are base64 encoded. Enabling the 'multipart'
+    directive:
+
+            multipart 0
+
+    will force detection of multipart content and sends a To: and
+    Content-Type header to clamd before the rest of the body. Disabled by
+    default for backward compatibility.
 
    Safebrowsing
     ClamAV 0.95 introduced support for Google Safe Browsing database. The
