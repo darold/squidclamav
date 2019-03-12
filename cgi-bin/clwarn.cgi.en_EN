@@ -2,6 +2,8 @@
 use strict;
 
 use CGI;
+# libarchive support:
+use Sys::Hostname;
 
 my $VERSION = '6.16';
 
@@ -12,12 +14,15 @@ my $virus = CGI::escapeHTML(scalar $cgi->param('virus')) || CGI::escapeHTML(scal
 my $source = CGI::escapeHTML(scalar $cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML(scalar $cgi->param('user')) || '';
+# libarchive support:
+my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
+my $default_recoverurl = "https://".hostname."/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
 
 
-my $TITLE_VIRUS = "SquidClamAv $VERSION: Virus detected!";
-my $subtitle = 'Virus name';
+my $TITLE_VIRUS = "SquidClamAv $VERSION: Threat detected!";
+my $subtitle = 'Threat name';
 my $errorreturn = 'This file cannot be downloaded.';
-my $urlerror = 'contains a virus';
+my $urlerror = 'contains a threat';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
 	$subtitle = 'Malware / pishing type';
@@ -34,18 +39,18 @@ print $cgi->header();
 
 print $cgi->start_html(-title => $TITLE_VIRUS, -bgcolor => "#353535");
 print qq{
-	<style type="text/css">
-	.visu {
+<style type="text/css">
+.visu {
 	border:1px solid #C0C0C0;
 	color:#FFFFFF;
-	  position: relative;
-	  min-width: 13em;
-	  max-width: 52em;
-	  margin: 4em auto;
-	  border: 1px solid ThreeDShadow;
-	  border-radius: 10px;
-	  padding: 3em;
-	  -moz-padding-start: 30px;
+	position: relative;
+	min-width: 13em;
+	max-width: 52em;
+	margin: 4em auto;
+	border: 1px solid ThreeDShadow;
+	border-radius: 10px;
+	padding: 3em;
+	-moz-padding-start: 30px;
 	background-color: #8b0000;
 }
 .visu h2, .visu h3, .visu h4 {
@@ -53,6 +58,14 @@ print qq{
 	font-family:"times new roman", times, serif;
 	font-style:normal;
 	font-weight:bolder;
+}
+.visu a:link, a:visited, a:active {
+	text-decoration: none;
+	color:#FFFFFF;
+}
+.visu a:hover {
+	text-decoration: none;
+	color:#00FF00;
 }
 </style>	
 	<div class="visu">
@@ -70,9 +83,17 @@ print qq{
 	$errorreturn
 	<p>
 	Origin: $source / $user
+};
+
+print qq{
+	<p>
+	Recover: <a target="_blank" href="$default_recoverurl$recover">link to recover data</a>
+} if ( (defined $recover) && (length($recover) > 0));
+
+print qq{
 	<p>
 	<hr>
-	<font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
+	<font color="#03ACFF"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
 	</div>
 };
 

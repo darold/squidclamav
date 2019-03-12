@@ -2,6 +2,7 @@
 use strict;
 
 use CGI;
+use Sys::Hostname;
 
 my $VERSION = '6.16';
 
@@ -12,11 +13,14 @@ my $virus = CGI::escapeHTML(scalar $cgi->param('virus')) || CGI::escapeHTML(scal
 my $source = CGI::escapeHTML(scalar $cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML(scalar $cgi->param('user')) || '';
+# libarchive support:
+my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
+my $default_recoverurl = "https://".hostname."/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
 
-my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um v&iacute;rus!";
-my $subtitle = 'nome do vírus';
+my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um amea&ccedi;a!";
+my $subtitle = 'nome do amea&ccedi;a';
 my $errorreturn = 'Este arquivo não pode ser baixado.';
-my $urlerror = 'contém um vírus';
+my $urlerror = 'contém um amea&ccedi;a';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
 	$subtitle = 'Malware / pishing type';
@@ -51,6 +55,14 @@ print qq{
 	font-style:normal;
 	font-weight:bolder;
 }
+.visu a:link, a:visited, a:active {
+	text-decoration: none;
+	color:#FFFFFF;
+}
+.visu a:hover {
+	text-decoration: none;
+	color:#00FF00;
+}
 </style>
         <div class="visu">
         <h2>$TITLE_VIRUS</h2>
@@ -67,9 +79,17 @@ print qq{
         $errorreturn
         <p>
         Origem: $source / $user
+};
+
+print qq{
+       <p>
+       Recuperar : <a target="_blank" href="$default_recoverurl$recover">link para recuperar dados</a>
+} if ( (defined $recover) && (length($recover) > 0));
+
+print qq{
         <p>
         <hr>
-        <font color="blue"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
+        <font color="#03ACFF"> Powered by <a href="http://squidclamav.darold.net/">SquidClamAv $VERSION</a>.</font>
         </div>
 };
 
