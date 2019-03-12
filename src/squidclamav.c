@@ -120,7 +120,6 @@ int debug = 0;
 int statit = 0;
 int timeout = 1;
 char *redirect_url = NULL;
-char *squidguard = NULL;
 char *clamd_local = NULL;
 char *clamd_ip = NULL;
 char *clamd_port = NULL;
@@ -251,7 +250,6 @@ void cfgreload_command(char *name, int type, char **argv)
     debugs(0, "LOG reload configuration command received\n");
 
     free_global();
-    free_pipe();
     debug = 0;
     statit = 0;
 
@@ -283,28 +281,11 @@ void cfgreload_command(char *name, int type, char **argv)
     if (squidclamav_xdata)
         set_istag(squidclamav_xdata);
 
-    if (squidguard != NULL) {
-        debugs(1, "DEBUG reopening pipe to %s\n", squidguard);
-        create_pipe(squidguard);
-    }
-
 }
 
 int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata,
                                   struct ci_server_conf *server_conf)
 {
-
-    if (squidguard == NULL) {
-        debugs(1, "DEBUG squidguard not defined, good\n");
-        return CI_OK;
-    }
-
-    debugs(1, "DEBUG opening pipe to %s\n", squidguard);
-
-    if (create_pipe(squidguard) == 1) {
-        return CI_ERROR;
-    }
-
     return CI_OK;
 }
 
@@ -312,7 +293,6 @@ void squidclamav_close_service()
 {
     debugs(1, "DEBUG clean all memory!\n");
     free_global();
-    free_pipe();
     ci_object_pool_unregister(AVREQDATA_POOL);
 }
 
@@ -391,15 +371,15 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if ((username = ci_headers_value(req->request_header, "X-Authenticated-User")) != NULL) {
 		debugs(2, "DEBUG X-Authenticated-User: %s\n", username);
 		if (scan_mode == SCAN_ALL) {
-		    /* if a TRUSTUSER match => no squidguard and no virus scan */
+		    /* if a TRUSTUSER match => no virus scan */
 		    if (simple_pattern_compare(username, TRUSTUSER) == 1) {
-		        debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+		        debugs(1, "DEBUG No antivir check (TRUSTUSER match) for user: %s\n", username);
 		        return CI_MOD_ALLOW204;
 		    }
 		} else {
-		    /* if a UNTRUSTUSER match => squidguard and virus scan */
+		    /* if a UNTRUSTUSER match => virus scan */
 		    if (simple_pattern_compare(username, UNTRUSTUSER) == 1) {
-		        debugs(1, "DEBUG No squidguard and antivir check (TRUSTUSER match) for user: %s\n", username);
+		        debugs(1, "DEBUG antivir check (UNTRUSTUSER match) for user: %s\n", username);
 			scanit = 1;
 		    }
 		}
@@ -414,15 +394,15 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		    if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
 			if (clientname->h_name != NULL) {
 		            if (scan_mode == SCAN_ALL) {
-			        /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+			        /* if a TRUSTCLIENT match => no virus scan */
 			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				    debugs(1, "DEBUG no antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
 				    return CI_MOD_ALLOW204;
 			        }
 			    } else {
-			        /* if a UNTRUSTCLIENT match => squidguard and virus scan */
+			        /* if a UNTRUSTCLIENT match => virus scan */
 			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(1, "DEBUG squidguard and antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				    debugs(1, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
 			            scanit = 1;
 			        }
 			    }
@@ -432,15 +412,15 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		}
 		if (chkipdone == 0) {
 		    if (scan_mode == SCAN_ALL) {
-		        /* if a TRUSTCLIENT match => no squidguard and no virus scan */
+		        /* if a TRUSTCLIENT match => no virus scan */
 		        if (client_pattern_compare(clientip, NULL) > 0) {
-			    debugs(1, "DEBUG No squidguard and antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+			    debugs(1, "DEBUG No antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
 			    return CI_MOD_ALLOW204;
 		        }
 		    } else {
-		        /* if a UNTRUSTCLIENT match => squidguard and virus scan */
+		        /* if a UNTRUSTCLIENT match => virus scan */
 		        if (client_pattern_compare(clientip, NULL) > 0) {
-			    debugs(1, "DEBUG squidguard and antivir check (UNTRUSTCLIENT match) for client: %s\n", clientip);
+			    debugs(1, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s\n", clientip);
 			    scanit = 1;
 		        }
 		    }
@@ -1327,9 +1307,6 @@ int load_patterns()
         }
     }
     free(buf);
-    if (squidguard != NULL) {
-        debugs(0, "LOG Chaining with %s\n", squidguard);
-    }
     ret = fclose(fp);
     if (ret != 0) {
         debugs(0, "ERROR Can't close configuration file (%d)\n", ret);
@@ -1505,27 +1482,6 @@ int add_pattern(char *s, int level)
 
 #endif
 
-    /* Path to chained other Squid redirector, mostly SquidGuard */
-    if(strcmp(type, "squidguard") == 0) {
-        squidguard = (char *) malloc (sizeof (char) * LOW_BUFF);
-        if(squidguard == NULL) {
-            fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
-            free(type);
-            free(first);
-            return 0;
-        } else {
-            if (isPathExists(first) == 0) {
-                xstrncpy(squidguard, first, LOW_BUFF);
-            } else {
-                debugs(0, "LOG Wrong path to SquidGuard, disabling.\n");
-		free(squidguard);
-            }
-        }
-        free(type);
-        free(first);
-        return 1;
-    }
-
     if(strcmp(type, "debug") == 0) {
         if (debug == 0)
             debug = atoi(first);
@@ -1653,7 +1609,6 @@ int add_pattern(char *s, int level)
             free(first);
             return 0;
         } else {
-                debugs(0, "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU %s\n", first);
             if (strncmp(first, "ScanNothingExcept", sizeof (char) * LOW_BUFF) == 0) {
                 scan_mode = SCAN_NONE;
                 debugs(0, "LOG setting squidclamav scan mode to 'ScanNothingExcept'.\n");
@@ -1890,7 +1845,6 @@ void free_global()
 
 void free_pipe()
 {
-    free(squidguard);
     if (sgfpw) fclose(sgfpw);
     if (sgfpr) fclose(sgfpr);
 }
