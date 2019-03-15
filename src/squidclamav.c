@@ -71,6 +71,9 @@ typedef struct av_req_data {
     char *user;
     char *clientip;
     char *malware;
+#ifdef HAVE_LIBARCHIVE
+    char *recover;
+#endif
 } av_req_data_t;
 
 static int SEND_PERCENT_BYTES = 0;
@@ -314,6 +317,9 @@ void *squidclamav_init_request_data(ci_request_t * req)
     data->blocked = 0;
     data->no_more_scan = 0;
     data->virus = 0;
+#ifdef HAVE_LIBARCHIVE
+    data->recover = NULL;
+#endif
 
     return data;
 }
@@ -761,6 +767,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                 char targetf[MAX_URL];
                 snprintf(targetf, sizeof(targetf), "%s/%s", recover_path, bfileref);
                 debugs(0, "LOG libarchive match found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
+		data->recover = ci_buffer_alloc(strlen(bfileref)+1);
+		strcpy(data->recover, bfileref);
                 if (!ci_req_sent_data(req)) {
                     generate_response_page(req, data);
                 }
@@ -869,6 +877,8 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     } else {
                         snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d.%s", PREFIX_VIRUS, data->user, data->clientip, (int)time(NULL), (int)rand() % 99, get_filename_ext(data->url));
                     }
+		    data->recover = ci_buffer_alloc(strlen(bfileref)+1);
+		    strcpy(data->recover, bfileref);
                     debugs(0, "LOG libarchive recover file [%s]\n", bfileref);
                 }
 #endif
@@ -1836,8 +1846,16 @@ void generate_response_page(ci_request_t *req, av_req_data_t *data)
 
     if (redirect_url != NULL) {
         char *urlredir = (char *) malloc( sizeof(char)*MAX_URL );
-        snprintf(urlredir, MAX_URL, "%s?url=%s&source=%s&user=%s&virus=%s",
-                 redirect_url, data->url, data->clientip, data->user, data->malware);
+        snprintf(urlredir, MAX_URL, "%s?url=%s&source=%s&user=%s&virus=%s&recover=%s"
+                 , redirect_url
+		 , data->url
+		 , data->clientip
+		 , data->user
+		 , data->malware
+#ifdef HAVE_LIBARCHIVE
+		 , data->recover
+#endif
+		 );
         if (logredir == 0)
             debugs((logredir==0) ? 1 : 0, "Virus redirection: %s.\n", urlredir);
         generate_redirect_page(urlredir, req, data);
