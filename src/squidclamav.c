@@ -116,7 +116,6 @@ CI_DECLARE_MOD_DATA ci_service_module_t service = {
     NULL
 };
 
-int debug = 0;
 int statit = 0;
 int timeout = 1;
 char *redirect_url = NULL;
@@ -188,7 +187,7 @@ int sendln(int asockd, const char *line, unsigned int len)
         int sent = send(asockd, line, len, 0);
         if (sent <= 0) {
             if(sent && errno == EINTR) continue;
-            debugs(0, "ERROR: Can't send to clamd: %s\n", strerror(errno));
+            debugs(0, "ERROR Can't send to clamd: %s\n", strerror(errno));
             return sent;
         }
         line += sent;
@@ -250,7 +249,6 @@ void cfgreload_command(char *name, int type, char **argv)
     debugs(0, "LOG reload configuration command received\n");
 
     free_global();
-    debug = 0;
     statit = 0;
 
     pattc = 0;
@@ -291,7 +289,7 @@ int squidclamav_post_init_service(ci_service_xdata_t * srv_xdata,
 
 void squidclamav_close_service()
 {
-    debugs(1, "DEBUG clean all memory!\n");
+    debugs(2, "DEBUG clean all memory!\n");
     free_global();
     ci_object_pool_unregister(AVREQDATA_POOL);
 }
@@ -300,7 +298,7 @@ void *squidclamav_init_request_data(ci_request_t * req)
 {
     av_req_data_t *data;
 
-    debugs(1, "DEBUG initializing request data handler.\n");
+    debugs(2, "DEBUG initializing request data handler.\n");
 
     if (!(data = ci_object_pool_alloc(AVREQDATA_POOL))) {
         debugs(0, "FATAL Error allocation memory for service data!!!");
@@ -326,7 +324,7 @@ void squidclamav_release_request_data(void *data)
 
     if (data)
     {
-        debugs(1, "DEBUG Releasing request data.\n");
+        debugs(2, "DEBUG Releasing request data.\n");
 
         if (((av_req_data_t *) data)->body)
             ci_simple_file_destroy(((av_req_data_t *) data)->body);
@@ -355,10 +353,10 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     const char *username;
     int chkipdone = 0;
 
-    debugs(1, "DEBUG processing preview header.\n");
+    debugs(2, "DEBUG processing preview header.\n");
 
     if (preview_data_len) {
-        debugs(1, "DEBUG preview data size is %d\n", preview_data_len);
+        debugs(2, "DEBUG preview data size is %d\n", preview_data_len);
     }
 
     /* Extract the HTTP header from the request */
@@ -523,7 +521,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 
 	    /* No data, so nothing to scan */
 	    if (!data || !ci_req_hasbody(req)) {
-		debugs(1, "DEBUG No body data, allow 204\n");
+		debugs(2, "DEBUG No body data, allow 204\n");
 		return CI_MOD_ALLOW204;
 	    }
 
@@ -539,14 +537,11 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     } else {
 
 	debugs(1, "WARNING bad http header, can not check URL, Content-Type and Content-Length.\n");
-	/*
-	return CI_ERROR;
-	*/
-	    /* No data, so nothing to scan */
-	    if (!data || !ci_req_hasbody(req)) {
-		debugs(1, "DEBUG No body data, allow 204\n");
-		return CI_MOD_ALLOW204;
-	    }
+	/* No data, so nothing to scan */
+	if (!data || !ci_req_hasbody(req)) {
+	    debugs(1, "DEBUG No body data, allow 204\n");
+	    return CI_MOD_ALLOW204;
+	}
 
     }
 
@@ -698,9 +693,6 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     content_length = ci_http_content_length(req);
 
     if (enable_libarchive > 0 && (banfile == 1) && (content_length > 0) && (content_length <= banmaxsize)) {
-        debugs(1, "LIBARCHIVE DEBUG: Scanning for archives supported by libarchive (content-length [%" PRINTF_OFF_T "] <= max size [%d])\n", (CAST_OFF_T) content_length, (int) banmaxsize);
-
-        lseek(body->fd, 0, SEEK_SET);
 
         struct archive *a;
         struct archive_entry *entry;
@@ -709,22 +701,23 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         int matched_archive_entries = 0;
         char descr[SMALL_BUFF];
 
+        lseek(body->fd, 0, SEEK_SET);
+
         a = archive_read_new();
         archive_read_support_filter_all(a);
         archive_read_support_format_all(a);
         r = archive_read_open_fd(a, body->fd, 10240);
         if (r != ARCHIVE_OK) {
-            debugs(2, "LIBARCHIVE ERROR: could not open file descriptor\n");
+            debugs(2, "WARNING libarchive could not open file descriptor (%d).\n", r);
         } else {
-            debugs(3, "LIBARCHIVE INFO: opened file descriptor\n");
-
+            debugs(2, "DEBUG scanning for archives supported by libarchive (content-length [%" PRINTF_OFF_T "] <= max size [%d])\n", (CAST_OFF_T) content_length, (int) banmaxsize);
             while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
                 archive_entries++;
-                debugs(3, "LIBARCHIVE INFO: Entry [%d] = [%s]\n", archive_entries, archive_entry_pathname(entry));
+                debugs(3, "LOG libarchive processing entry %d => %s\n", archive_entries, archive_entry_pathname(entry));
                 if (simple_pattern_compare(archive_entry_pathname(entry), BANFILE)) {
                     matched_archive_entries++;
                     data->virus = 1;
-                    debugs(3, "LIBARCHIVE INFO: Matched [%s] (%d)\n", archive_entry_pathname(entry), data->virus);
+                    debugs(0, "LOG libarchive entry %d matched [%s]\n", archive_entries, archive_entry_pathname(entry));
                     /* inform user why this file was banned */
                     snprintf(descr, sizeof(descr), "BANNED:%s", archive_entry_pathname(entry));
 		    data->malware = ci_buffer_alloc(strlen(descr)+1);
@@ -739,7 +732,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
             }
             r = archive_read_free(a);
             if (r != ARCHIVE_OK) {
-                debugs(2, "LIBARCHIVE WARNING: could not close file descriptor\n");
+                debugs(2, "WARNING could not close file descriptor\n");
             }
         }
         /* check number of entries */
@@ -756,28 +749,28 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 		 * web_USER_CLIENTIP_UNIXTIME_RAND(0-99).FILEEXT
 		 */
                 if (has_invalid_chars(INVALID_CHARS, get_filename_ext(data->url)) == 1) {
-                    debugs(4, "LIBARCHIVE DEBUG: setting up file name without extension.\n");
+                    debugs(3, "DEBUG libarchive setting up file name without extension.\n");
                     snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d", PREFIX_BANNED, data->user, data->clientip, (int)time(NULL), (int)rand() % 99);
                 } else {
-                    debugs(4, "LIBARCHIVE DEBUG: setting up file name with extension.\n");
+                    debugs(3, "DEBUG libarchive setting up file name with extension.\n");
                     snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d.%s", PREFIX_BANNED, data->user, data->clientip, (int)time(NULL), (int)rand() % 99, get_filename_ext(data->url));
                 }
-                debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", bfileref);
+                debugs(2, "DEBUG libarchive recover file [%s]\n", bfileref);
                 /* copy file to quarantine dir */
                 lseek(body->fd, 0, SEEK_SET);
                 char targetf[MAX_URL];
                 snprintf(targetf, sizeof(targetf), "%s/%s", recover_path, bfileref);
-                debugs(1, "LIBARCHIVE DEBUG Match found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
+                debugs(0, "LOG libarchive match found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
                 if (!ci_req_sent_data(req)) {
                     generate_response_page(req, data);
                 }
             } else {
-                debugs(1, "LIBARCHIVE DEBUG Match found, sending redirection header / error page. Data not copied.\n");
+                debugs(0, "LOG libarchive match found, sending redirection header / error page. Data not copied.\n");
             }
             return CI_MOD_DONE;
         }
     } else if (enable_libarchive > 0 && content_length > 0) {
-        debugs(2, "LIBARCHIVE DEBUG No archive check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) banmaxsize);
+        debugs(2, "DEBUG libarchive no archive check, content-length bigger than maxsize (%" PRINTF_OFF_T " > %d)\n", (CAST_OFF_T) content_length, (int) banmaxsize);
     }
 
     /* Now check for virus. */
@@ -788,7 +781,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         debugs(0, "ERROR Can't connect to Clamd daemon.\n");
         return CI_MOD_ERROR;
     }
-    debugs(1, "DEBUG Sending zINSTREAM command to clamd.\n");
+    debugs(2, "DEBUG Sending zINSTREAM command to clamd.\n");
 
     if (write(sockd, "zINSTREAM", 10) <= 0) {
         debugs(0, "ERROR Can't write to Clamd socket.\n");
@@ -796,7 +789,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         return CI_MOD_ERROR;
     }
 
-    debugs(1, "DEBUG Ok connected to clamd.\n");
+    debugs(2, "DEBUG Ok connected to clamd.\n");
 
     /* Check the Content-Type is of type multipart */
     if (multipart == 1 && ((content_type = http_content_type(req)) != NULL)) {
@@ -824,7 +817,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     /*-----------------------------------------------------*/
 
-    debugs(1, "DEBUG: Scanning data now\n");
+    debugs(2, "DEBUG Scanning data now\n");
     lseek(body->fd, 0, SEEK_SET);
     memset(cbuff, 0, sizeof(cbuff));
     total_read = 0;
@@ -859,11 +852,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
         memset (clbuf, 0, sizeof(clbuf));
         while ((nbread = read(sockd, clbuf, SMALL_BUFF - 1)) > 0) {
 	    clbuf[nbread] = '\0';
-            debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
+            debugs(2, "DEBUG received from Clamd: %s\n", clbuf);
             if (strstr (clbuf, "FOUND")) {
                 data->virus = 1;
 		data->malware = ci_buffer_alloc(strlen(clbuf)+1);
 		strcpy(data->malware, clbuf);
+                debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, clbuf);
 #ifdef HAVE_LIBARCHIVE
                 /* do as for banned files (libarchive) */
                 if (enable_libarchive > 0 && (recovervirus == 1) && (recover_path != NULL)) {
@@ -875,13 +869,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                     } else {
                         snprintf(bfileref, sizeof(bfileref), "%s%s_%s_%d_%d.%s", PREFIX_VIRUS, data->user, data->clientip, (int)time(NULL), (int)rand() % 99, get_filename_ext(data->url));
                     }
-                    debugs(3, "LIBARCHIVE DEBUG: Recover [%s]\n", bfileref);
+                    debugs(0, "LOG libarchive recover file [%s]\n", bfileref);
                 }
 #endif
                 if (!ci_req_sent_data(req)) {
                     generate_response_page(req, data);
                 }
-                debugs(1, "DEBUG Virus found, ending download.\n");
                 break;
             }
             memset(clbuf, 0, sizeof(clbuf));
@@ -890,7 +883,7 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
     /* close second socket to clamd */
     if (sockd > -1) {
-        debugs(1, "DEBUG Closing Clamd connection.\n");
+        debugs(2, "DEBUG Closing Clamd connection.\n");
         close(sockd);
     }
 
@@ -902,13 +895,13 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
                 lseek(body->fd, 0, SEEK_SET);
                 char targetf[MAX_URL];
                 snprintf(targetf, sizeof(targetf), "%s/%s", recover_path, bfileref);
-                debugs(1, "DEBUG Virus found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
+                debugs(0, "LOG Virus found, sending redirection header / error page. Copied to [%s] with exit code [%d].\n", targetf, copy_file(body->fd, targetf));
             } else {
-                debugs(1, "DEBUG Virus found, sending redirection header / error page.\n");
+                debugs(0, "LOG Virus found, sending redirection header / error page.\n");
             }
 	}
 #else
-	debugs(1, "DEBUG Virus found, sending redirection header / error page.\n");
+	debugs(1, "LOG Virus found, sending redirection header / error page.\n");
 #endif
         return CI_MOD_DONE;
     }
@@ -1172,48 +1165,39 @@ int simple_pattern_compare(const char *str, const int type)
             switch(type) {
                 /* return 1 if string matches whitelist pattern */
                 case WHITELIST:
-                    if (debug > 0)
-                        debugs(2, "DEBUG whitelist (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG whitelist (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                 case BLACKLIST:
-                    if (debug > 0)
-                        debugs(2, "DEBUG blacklist (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG blacklist (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches abort pattern */
                 case ABORT:
-                    if (debug > 0)
-                        debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches scan pattern */
                 case SCAN:
-                    if (debug > 0)
-                        debugs(2, "DEBUG scan (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG scan (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches trustuser pattern */
                 case TRUSTUSER:
-                    if (debug > 0)
-                        debugs(2, "DEBUG trustuser (%s) matched: %s\n", patterns[i].pattern, str);
+                     debugs(2, "DEBUG trustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches untrustuser pattern */
                 case UNTRUSTUSER:
-                    if (debug > 0)
-                        debugs(2, "DEBUG untrustuser (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG untrustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches abortcontent pattern */
                 case ABORTCONTENT:
-                    if (debug > 0)
-                        debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                     /* return 1 if string matches scancontent pattern */
                 case SCANCONTENT:
-                    if (debug > 0)
-                        debugs(2, "DEBUG scancontent (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG scancontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
 #ifdef HAVE_LIBARCHIVE
                     /* return 1 if string matches banfile pattern (libarchive) */
                 case BANFILE:
-                    if (debug > 0)
-                        debugs(2, "DEBUG banfile (%s) matched: %s\n", patterns[i].pattern, str);
+                    debugs(2, "DEBUG banfile (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
 #endif
                 default:
@@ -1237,28 +1221,24 @@ int client_pattern_compare(const char *ip, char *name)
             /* Look at client ip pattern matching */
             /* return 1 if string matches ip TRUSTCLIENT pattern */
             if (regexec(&patterns[i].regexv, ip, 0, 0, 0) == 0) {
-                if (debug != 0)
-                    debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, ip);
+                debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, ip);
                 return 1;
                 /* Look at client name pattern matching */
                 /* return 2 if string matches fqdn TRUSTCLIENT pattern */
             } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0)) {
-                if (debug != 0)
-                    debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, name);
+                debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
         } else if ( (scan_mode == SCAN_NONE) && (patterns[i].type == UNTRUSTCLIENT) ) {
             /* Look at client ip pattern matching */
             /* return 1 if string doesn't matches ip UNTRUSTCLIENT pattern */
             if (regexec(&patterns[i].regexv, ip, 0, 0, 0) != 0) {
-                if (debug != 0)
-                    debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, ip);
+                debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, ip);
                 return 1;
                 /* Look at client name pattern matching */
                 /* return 2 if string doesn't matches fqdn UNTRUSTCLIENT pattern */
             } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) != 0)) {
-                if (debug != 0)
-                    debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, name);
+                debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
 	}
@@ -1279,8 +1259,7 @@ int load_patterns()
 
     if (isPathExists(CONFIGDIR "/" CONFIG_FILE) == 0) {
         fp = fopen(CONFIGDIR "/" CONFIG_FILE, "rt");
-        if (debug > 0)
-            debugs(0, "LOG Reading configuration from %s\n", CONFIGDIR "/" CONFIG_FILE);
+        debugs(0, "LOG Reading configuration from %s\n", CONFIGDIR "/" CONFIG_FILE);
     }
 
 
@@ -1392,8 +1371,7 @@ int add_pattern(char *s, int level)
     /* remove extra space or tabulation */
     trim(first);
 
-    if (debug > 0)
-	debugs(0, "LOG Reading directive %s with value %s\n", type, first);
+    debugs(0, "LOG Reading directive %s with value %s\n", type, first);
     /* URl to redirect Squid on virus found */
     if(strcmp(type, "redirect") == 0) {
         redirect_url = (char *) malloc (sizeof (char) * LOW_BUFF);
@@ -1481,14 +1459,6 @@ int add_pattern(char *s, int level)
     }
 
 #endif
-
-    if(strcmp(type, "debug") == 0) {
-        if (debug == 0)
-            debug = atoi(first);
-        free(type);
-        free(first);
-        return 1;
-    }
 
     if(strcmp(type, "logredir") == 0) {
         if (logredir == 0)
@@ -1675,7 +1645,7 @@ int add_pattern(char *s, int level)
     } else if(strcmp(type, "untrustclient") == 0) {
         currItem.type = UNTRUSTCLIENT;
     } else if ( (strcmp(type, "squid_ip") != 0) && (strcmp(type, "squid_port") != 0) && (strcmp(type, "maxredir") != 0) && (strcmp(type, "useragent") != 0) && (strcmp(type, "trust_cache") != 0) ) {
-        fprintf(stderr, "WARNING: Bad configuration keyword: %s\n", s);
+        fprintf(stderr, "WARNING Bad configuration keyword: %s\n", s);
         free(type);
         free(first);
         return 1;
@@ -1721,8 +1691,7 @@ readFileContent(char *filepath, char *kind)
 	return 0;
     }
 
-    if (debug > 0)
-        debugs(0, "LOG Reading %s information from file from %s\n", kind, filepath);
+    debugs(0, "LOG Reading %s information from file from %s\n", kind, filepath);
     fp = fopen(filepath, "rt");
     if (fp == NULL) {
         debugs(0, "FATAL unable to open %s file: %s\n", kind, filepath);
@@ -1903,6 +1872,7 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
 
+    debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, data->malware);
     malware = (char *) malloc (sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1) );
     memset(malware, 0, sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1));
     strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
@@ -2084,7 +2054,7 @@ int dconnect()
 
     memset ((char *) &userver, 0, sizeof (userver));
 
-    debugs(1, "entering.\n");
+    debugs(2, "entering.\n");
     if (clamd_local != NULL) {
         userver.sun_family = AF_UNIX;
         xstrncpy (userver.sun_path, clamd_local, sizeof(userver.sun_path));
@@ -2232,7 +2202,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
         debugs(0, "ERROR Can't connect to Clamd daemon.\n");
         return 0;
     }
-    debugs(1, "DEBUG Sending zINSTREAM command to clamd.\n");
+    debugs(2, "DEBUG Sending zINSTREAM command to clamd.\n");
 
     if (write(sockd, "zINSTREAM", 10) <= 0) {
         debugs(0, "ERROR Can't write to Clamd socket.\n");
@@ -2240,9 +2210,9 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
         return 0;
     }
 
-    debugs(1, "DEBUG Ok connected to clamd socket.\n");
+    debugs(2, "DEBUG Ok connected to clamd socket.\n");
 
-    debugs(1, "DEBUG: Scanning url for Malware now\n");
+    debugs(1, "DEBUG Scanning url for Malware now\n");
     uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
     strcpy(cbuff, "From test\n\n<a href=");
     strncat(cbuff, url, MAX_URL);
@@ -2251,7 +2221,7 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
     sfsize = strlen(cbuff);
     buf[0] = htonl(sfsize);
     memcpy(&buf[1],(const char*) cbuff, sfsize);
-    debugs(3, "DEBUG: sending %s\n", cbuff);
+    debugs(3, "DEBUG sending %s\n", cbuff);
     ret = sendln (sockd,(const char *) buf, sfsize+sizeof(uint32_t));
     if ( ret <= 0 ) {
         debugs(0, "ERROR Can't write to clamd socket.\n");
@@ -2267,11 +2237,12 @@ int squidclamav_safebrowsing(ci_request_t * req, char *url, const char *clientip
             memset (clbuf, 0, sizeof(clbuf));
             while ((nbread = read(sockd, clbuf, SMALL_BUFF - 1)) > 0) {
 		clbuf[nbread] = '\0';
-                debugs(1, "DEBUG received from Clamd: %s\n", clbuf);
+                debugs(2, "DEBUG received from Clamd: %s\n", clbuf);
                 if (strstr (clbuf, "FOUND")) {
                     data->blocked = 1;
 		    data->malware = ci_buffer_alloc(strlen(clbuf)+1);
 		    strcpy(data->malware, clbuf);
+                    debugs(0, "LOG Virus found in %s ending download [%s]\n", url, clbuf);
 		    if (sockd > -1) {
 			debugs(1, "DEBUG Closing Clamd connection.\n");
 			close(sockd);
@@ -2329,14 +2300,14 @@ int copy_file(int fd_src, const char  *fname_dst)
 
     fd_dst = open(fname_dst, O_WRONLY | O_CREAT | O_EXCL, 0666);
     if(fd_dst < 0) {
-        debugs(1, "LIBARCHIVE DEBUG: could not create [%s]\n", fname_dst);
+        debugs(0, "DEBUG libarchive could not create [%s]\n", fname_dst);
         return  -1;
     }
 
     total_read = 0;
     while (nread = read(fd_src, buf, sizeof(buf)), nread > 0) {
         total_read += nread;
-        debugs(3, "LIBARCHIVE DEBUG: read [%d] bytes of data\n", (int) nread);
+        debugs(3, "DEBUG libarchive read [%d] bytes of data\n", (int) nread);
         char *out_ptr = buf;
         ssize_t written;
         do {
@@ -2344,14 +2315,14 @@ int copy_file(int fd_src, const char  *fname_dst)
             if (written >= 0) {
                 nread -= written;
                 out_ptr += written;
-                debugs(3, "LIBARCHIVE DEBUG: [%d] bytes written\n", (int) written);
+                debugs(3, "DEBUG libarchive %d bytes written\n", (int) written);
             } else {
-                debugs(3, "LIBARCHIVE DEBUG: write error [%d]\n", (int) written);
+                debugs(3, "DEBUG libarchive write error %d\n", (int) written);
             }
         } while (nread > 0);
     }
 
-    debugs(3, "LIBARCHIVE DEBUG: closing [%s] ([%d] bytes)\n", fname_dst, (int) total_read);
+    debugs(3, "DEBUG libarchive closing %s (%d bytes)\n", fname_dst, (int) total_read);
     close(fd_dst);
     return  0;
 }
@@ -2362,15 +2333,15 @@ int copy_file(int fd_src, const char  *fname_dst)
 int has_invalid_chars(const char *inv_chars, const char *target)
 {
     const char *c = target;
-    debugs(4, "LIBARCHIVE DEBUG: checking for troublesome chars [%s] in [%s]\n", inv_chars, target);
+    debugs(3, "DEBUG libarchive checking for troublesome chars [%s] in [%s]\n", inv_chars, target);
     while (*c) {
         if (strchr(inv_chars, *c)) {
-            debugs(3, "LIBARCHIVE WARNING: Found troublesome char [%c] in [%s]\n", *c, target);
+            debugs(3, "WARNING libarchive found troublesome char [%c] in [%s]\n", *c, target);
             return 1;
         }
         c++;
     }
-    debugs(4, "LIBARCHIVE DEBUG: no troublesome chars in [%s]\n", target);
+    debugs(3, "DEBUG libarchive no troublesome chars in [%s]\n", target);
     return 0;
 }
 #endif
