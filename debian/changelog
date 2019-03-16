@@ -1,3 +1,7 @@
+c-icap-module-squidclamav (1:7.0-1-custom1) unstable; urgency=medium
+  * New upstream release 7.0, changelog from source:
+    - https://github.com/darold/squidclamav/blob/master/ChangeLog
+
 c-icap-module-squidclamav (1:6.16-1-custom1) unstable; urgency=medium
 
   * New upstream release 6.16, changelog from source:

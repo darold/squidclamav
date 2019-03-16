@@ -1,17 +1,83 @@
+2019-03-16 version 7.0
+
+This major version adds some useful features, new configuration directives
+and fix some bugs reported by users since previous release.
+
+New features are:
+
+  * New scan mode. By default squidclamav scan everything excepted the
+    exclusions defined in 'abort', 'abortcontent', 'whitelist', 'trustuser'
+    and 'trustclient' configuration directives. There is now a mode where
+    squidclamav will scan nothing excepted the inclusions defined with
+    directives 'scan', 'scancontent', 'blacklist', 'untrustuser' and
+    'untrustclient'. The scan mode is controlled by a new configuration
+    directive 'scan_mode'. Possible values are 'ScanAllExcept' (the default)
+    and 'ScanNothingExcept'.
+
+  * Add support to libarchive to be able to ban archive with some suspect
+    files inside that are not detected by ClamAv. This feature is disabled
+    by default and can be enable using 'enable_libarchive'. The ban archive
+    can be stored to be recovered by the user through the redirect CGI script
+    if directive 'recoverpath' is set.
+
+  * An archive banned by libarchive can be recovered through the redirect
+    CGI. See cgi-bin/clwarn.cgi and the redirect configuration directive.
+    recoverpath must be set to use this feature.
+
+Backward compatibility with version 6 of squidclamav and existing
+configuration files is fully preserved except for the obsolete 'squidguard'
+directive that has been removed. Chained program using this directive is
+no longer supported, use the 'url_rewrite_program' squid.conf directive
+instead to call squidGuard or any other Url checker.
+
+  - Pass generated name of the file saved by libarchive mode to recover
+    the file through a link in the redirect CGI.
+  - Remove obsolete code related to debug and squidguard directives.
+  - Remove obsolete squidguard configuration directive.
+  - Print less messages at DebugLevel 1 to only display essential messages.
+    Remove support to chained program like squidguard using the squidguard
+    directive. Use the 'url_rewrite_program' squid.conf directive instead.
+  - Add multipart configuration directive to documentation.
+  - Add libarchive support (link to recover file) in all CGI scripts.
+  - Update documentation and copyrights.
+  - Update autoconf/automake files.
+  - SquidClamav has a default "ScanAllExcepted" behavior, that mean that
+    everything is scanned except the exclusion set in abort, abortcontent
+    and whitelist directives. With new directive scan_mode it is now
+    possible to reverse the default behavior with mode "ScanNothingExcepted"
+    which will scan nothing excepted what is defined in directive scan,
+    scancontent and blacklist. Backward compatibility is fully preserved.
+    Thanks to Andres Ofner for the feature request.
+  - Add new configuration directives scan_mode, scan, scancontent and
+    blacklist.
+  - Fix some compilation warning with libarchive support and improve multipart
+    content-type code.
+  - Add documentation about libarchive support.
+  - Do not compile code for libarchive support if libarchive is not available
+    to preserve backward compatibility.
+  - Update autoconf and automake files.
+  - Add support to libarchive to be able to exclude archives following their
+    content. Thanks to Vieri Di Paola for the patch.
+  - Send multipart content-type headers to clamav. Thanks to Paul Winkler for
+    the patch.
+  - Fix missing prefix for c-icap-config which affects systems where c-icap is
+    not installed in the PATH. Thanks to Sebastian Weitzel for the patch.
+  - Add debian folder. Thanks to Louis van Belle for the patch.
+
 2016-08-30 version 6.16
 
-This release fixes a major bug with debugs macro that can have
+66This release fixes a major bug with debugs macro that can have
 bad side effects like printing an error after configuration reload
 an possibly some other wrong behaviors.
 
   - Change log level of configuration reloading message.
   - Show line in configuration file that can not be parsed
     by add_pattern().
-  - Enclose debugs macro to avoid misusage. Thanks to Denis Volpato
+  - Enclose debugs macro to avoid miss usage. Thanks to Denis Volpato
     Martins for the patch.
   - Fix Apache complain "AH01215: CGI::param called in list context
     from package main line 14, this can lead to vulnerabilities."
-    Thanks to thctlo for the report.
+    Thanks to Louis van Belle for the report.
 
 Please upgrade asap.
 
