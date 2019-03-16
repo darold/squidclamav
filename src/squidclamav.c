@@ -377,13 +377,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		if (scan_mode == SCAN_ALL) {
 		    /* if a TRUSTUSER match => no virus scan */
 		    if (simple_pattern_compare(username, TRUSTUSER) == 1) {
-		        debugs(1, "DEBUG No antivir check (TRUSTUSER match) for user: %s\n", username);
+		        debugs(2, "DEBUG No antivir check (TRUSTUSER match) for user: %s\n", username);
 		        return CI_MOD_ALLOW204;
 		    }
 		} else {
 		    /* if a UNTRUSTUSER match => virus scan */
 		    if (simple_pattern_compare(username, UNTRUSTUSER) == 1) {
-		        debugs(1, "DEBUG antivir check (UNTRUSTUSER match) for user: %s\n", username);
+		        debugs(2, "DEBUG antivir check (UNTRUSTUSER match) for user: %s\n", username);
 			scanit = 1;
 		    }
 		}
@@ -400,13 +400,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		            if (scan_mode == SCAN_ALL) {
 			        /* if a TRUSTCLIENT match => no virus scan */
 			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(1, "DEBUG no antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				    debugs(2, "DEBUG no antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
 				    return CI_MOD_ALLOW204;
 			        }
 			    } else {
 			        /* if a UNTRUSTCLIENT match => virus scan */
 			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(1, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+				    debugs(2, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
 			            scanit = 1;
 			        }
 			    }
@@ -418,13 +418,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		    if (scan_mode == SCAN_ALL) {
 		        /* if a TRUSTCLIENT match => no virus scan */
 		        if (client_pattern_compare(clientip, NULL) > 0) {
-			    debugs(1, "DEBUG No antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
+			    debugs(2, "DEBUG No antivir check (TRUSTCLIENT match) for client: %s\n", clientip);
 			    return CI_MOD_ALLOW204;
 		        }
 		    } else {
 		        /* if a UNTRUSTCLIENT match => virus scan */
 		        if (client_pattern_compare(clientip, NULL) > 0) {
-			    debugs(1, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s\n", clientip);
+			    debugs(2, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s\n", clientip);
 			    scanit = 1;
 		        }
 		    }
@@ -449,13 +449,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (scan_mode == SCAN_ALL) {
 	        /* Check the URL against SquidClamav Whitelist */
 	        if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
-		    debugs(1, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+		    debugs(2, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
 		    return CI_MOD_ALLOW204;
 	        }
 	    } else {
 	        /* Check the URL against SquidClamav blacklist */
 	        if (simple_pattern_compare(httpinf.url, BLACKLIST) == 1) {
-		    debugs(1, "DEBUG antivir check (BLACKLIST match) for url: %s\n", httpinf.url);
+		    debugs(2, "DEBUG antivir check (BLACKLIST match) for url: %s\n", httpinf.url);
 		    scanit = 1;
 	        }
 	    }
@@ -476,13 +476,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    if (scan_mode == SCAN_ALL) {
 	        /* Check the URL against SquidClamav abort */
 	        if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
-		    debugs(1, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
+		    debugs(2, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
 		    return CI_MOD_ALLOW204;
 	        }
 	    } else {
 	        /* Check the URL against SquidClamav scan */
 	        if (simple_pattern_compare(httpinf.url, SCAN) == 1) {
-		    debugs(1, "DEBUG antivir check (SCAN match) for url: %s\n", httpinf.url);
+		    debugs(2, "DEBUG antivir check (SCAN match) for url: %s\n", httpinf.url);
 		    scanit = 1;
 	        }
 	    }
@@ -501,13 +501,13 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		if (scan_mode == SCAN_ALL) {
 		    /* Check the Content-Type against SquidClamav abortcontent */
 		    if (simple_pattern_compare(content_type, ABORTCONTENT)) {
-		        debugs(1, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
+		        debugs(2, "DEBUG No antivir check (ABORTCONTENT match) for content-type: %s\n", content_type);
 		        return CI_MOD_ALLOW204;
 		    }
 		} else {
 		    /* Check the Content-Type against SquidClamav scancontent */
 		    if (simple_pattern_compare(content_type, SCANCONTENT)) {
-		        debugs(1, "DEBUG No antivir check (SCANCONTENT match) for content-type: %s\n", content_type);
+		        debugs(2, "DEBUG No antivir check (SCANCONTENT match) for content-type: %s\n", content_type);
 		        scanit = 1;
 		    }
 		}
