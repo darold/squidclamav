@@ -12,9 +12,11 @@ my $virus = CGI::escapeHTML(scalar $cgi->param('virus')) || CGI::escapeHTML(scal
 my $source = CGI::escapeHTML(scalar $cgi->param('source')) || '';
 $source =~ s/\/-//;
 my $user = CGI::escapeHTML(scalar $cgi->param('user')) || '';
+
 # libarchive support:
 my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
-my $default_recoverurl = 'https://' . $cgi->server_name() . "/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
+$recover =~ s/^\(null\)$//;
+my $default_recoverurl = 'https://' . $cgi->server_name() . "/recover/?id=" if ($recover);
 
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Foi detectado um amea&ccedi;a!";
 my $subtitle = 'nome do amea&ccedi;a';
@@ -83,7 +85,7 @@ print qq{
 print qq{
        <p>
        Recuperar : <a target="_blank" href="$default_recoverurl$recover">link para recuperar dados</a>
-} if ( (defined $recover) && (length($recover) > 0));
+} if ($recover);
 
 print qq{
         <p>
