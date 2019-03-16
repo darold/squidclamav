@@ -2,8 +2,6 @@
 use strict;
 
 use CGI;
-# libarchive support:
-use Sys::Hostname;
 
 my $VERSION = '6.16';
 
@@ -16,7 +14,7 @@ $source =~ s/\/-//;
 my $user = CGI::escapeHTML(scalar $cgi->param('user')) || '';
 # libarchive support:
 my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
-my $default_recoverurl = "https://".hostname."/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
+my $default_recoverurl = 'https://' . $cgi->server_name() . "/recover/?id=" if ( (defined $recover) && (length($recover) > 0));
 
 
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Threat detected!";
