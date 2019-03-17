@@ -21,10 +21,10 @@ my $default_recoverurl = 'https://' . $cgi->server_name() . "/recover/?id=" if (
 my $TITLE_VIRUS = "SquidClamAv $VERSION: Обнаружена угроза!";
 my $subtitle = 'Имя угрозы';
 my $errorreturn = 'Этот файл не может быть загружен.';
-my $urlerror = 'содержит угроза';
+my $urlerror = 'содержит угрозу';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
-	$subtitle = 'Malware / pishing type';
+	$subtitle = 'Malware / phishing type';
 	$urlerror = 'занесен в список подозрительных';
 	$errorreturn = 'Эта страница не может быть отображена';
 }
