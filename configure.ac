@@ -30,7 +30,7 @@ CFLAGS="$CFLAGS -Wall"
 
 #check for c-icap
 AC_ARG_WITH(c-icap,
-[  --with-c-icap	Where to find c-icap ],
+[  --with-c-icap		  Where to find c-icap ],
 [
     cicapdir="$withval"
     if test -f $withval/bin/c-icap-config; then
@@ -82,12 +82,18 @@ fi
 
 # Check for libarchive
 AC_ARG_WITH(libarchive,
-[  --with-libarchive	Where to find archive.h ],
+[  --with-libarchive	  Where to find archive.h ],
 [
     if test -f $withval/archive.h; then
 	haslibarchive='yes'
 	libarchivelibs=" -larchive -lz -lbz2"
         libarchivedir=" -I$withval"
+    else
+        if test -f $withval/include/archive.h; then
+	    haslibarchive='yes'
+	    libarchivelibs=" -larchive -lz -lbz2"
+            libarchivedir=" -I$withval/include"
+        fi
     fi
 ],
 )

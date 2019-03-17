@@ -1455,8 +1455,8 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-sysroot[=DIR]    Search for dependent libraries within DIR (or the
                           compiler's sysroot if not specified).
-  --with-c-icap	Where to find c-icap
-  --with-libarchive	Where to find archive.h
+  --with-c-icap		  Where to find c-icap
+  --with-libarchive	  Where to find archive.h
 
 Some influential environment variables:
   CC          C compiler command
@@ -12665,6 +12665,12 @@ if test "${with_libarchive+set}" = set; then :
 	haslibarchive='yes'
 	libarchivelibs=" -larchive -lz -lbz2"
         libarchivedir=" -I$withval"
+    else
+        if test -f $withval/include/archive.h; then
+	    haslibarchive='yes'
+	    libarchivelibs=" -larchive -lz -lbz2"
+            libarchivedir=" -I$withval/include"
+        fi
     fi
 
 fi
