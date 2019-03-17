@@ -71,9 +71,7 @@ typedef struct av_req_data {
     char *user;
     char *clientip;
     char *malware;
-#ifdef HAVE_LIBARCHIVE
     char *recover;
-#endif
 } av_req_data_t;
 
 static int SEND_PERCENT_BYTES = 0;
@@ -317,9 +315,7 @@ void *squidclamav_init_request_data(ci_request_t * req)
     data->blocked = 0;
     data->no_more_scan = 0;
     data->virus = 0;
-#ifdef HAVE_LIBARCHIVE
     data->recover = NULL;
-#endif
 
     return data;
 }
@@ -661,12 +657,18 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     char cbuff[LBUFSIZ];
     char clbuf[SMALL_BUFF];
     const char *content_type = NULL;
-    int content_length = 0;
 
     ssize_t ret;
     int nbread = 0;
     int sockd;
     unsigned long total_read;
+
+#ifdef HAVE_LIBARCHIVE
+    int content_length = 0;
+    /* If local path was specified then generate unique file name to copy data.
+    It can be used to put banned files and viri in quarantine directory. */
+    char bfileref[SMALL_BUFF];
+#endif
 
     debugs(2, "DEBUG ending request data handler.\n");
 
@@ -690,10 +692,6 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 
 #ifdef HAVE_LIBARCHIVE
     /* Block archive entries supported by libarchive before scanning for virus. */
-
-    /* If local path was specified then generate unique file name to copy data.
-    It can be used to put banned files and viri in quarantine directory. */
-    char bfileref[SMALL_BUFF];
 
     /* Get content length*/
     content_length = ci_http_content_length(req);
@@ -1852,9 +1850,7 @@ void generate_response_page(ci_request_t *req, av_req_data_t *data)
 		 , data->clientip
 		 , data->user
 		 , data->malware
-#ifdef HAVE_LIBARCHIVE
 		 , data->recover
-#endif
 		 );
         if (logredir == 0)
             debugs((logredir==0) ? 1 : 0, "Virus redirection: %s.\n", urlredir);
