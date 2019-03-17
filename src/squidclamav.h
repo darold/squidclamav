@@ -102,12 +102,12 @@ struct IN_BUFF {
 #define INVALID_CHARS "\\/:*?<>|"
 #define PREFIX_BANNED "banned_"
 #define PREFIX_VIRUS "virus_"
+#endif
+
 #define max(a,b) \
     ({ __typeof__ (a) _a = (a); \
         __typeof__ (b) _b = (b); \
         _a > _b ? _a : _b; })
-
-#endif
 
 #define ACCEL_NORMAL 1
 #define ACCEL_START  2
