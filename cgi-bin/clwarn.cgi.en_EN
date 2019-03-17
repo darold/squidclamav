@@ -25,7 +25,7 @@ my $errorreturn = 'This file cannot be downloaded.';
 my $urlerror = 'contains a threat';
 if ($virus =~ /Safebrowsing/) {
 	$TITLE_VIRUS = "SquidClamAv $VERSION: Unsafe Browsing detected";
-	$subtitle = 'Malware / pishing type';
+	$subtitle = 'Malware / phishing type';
 	$urlerror = 'is listed as suspicious';
 	$errorreturn = 'This page can not be displayed';
 }
