@@ -788,6 +788,7 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 with_c_icap
+with_libarchive
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1455,6 +1456,7 @@ Optional Packages:
   --with-sysroot[=DIR]    Search for dependent libraries within DIR (or the
                           compiler's sysroot if not specified).
   --with-c-icap	Where to find c-icap
+  --with-libarchive	Where to find archive.h
 
 Some influential environment variables:
   CC          C compiler command
@@ -12655,9 +12657,31 @@ if test -z "$cicapdir"; then
 fi
 
 # Check for libarchive
-if test -f "/usr/include/archive.h" || test -f "/usr/local/include/archive.h"; then
+
+# Check whether --with-libarchive was given.
+if test "${with_libarchive+set}" = set; then :
+  withval=$with_libarchive;
+    if test -f $withval/archive.h; then
 	haslibarchive='yes'
 	libarchivelibs=" -larchive -lz -lbz2"
+        libarchivedir=" -I$withval"
+    fi
+
+fi
+
+
+if test -z "$haslibarchive"; then
+    if test -f "/usr/include/archive.h"; then
+	haslibarchive='yes'
+	libarchivelibs=" -larchive -lz -lbz2"
+	libarchivedir=""
+    else
+	if test -f "/usr/local/include/archive.h"; then
+	    haslibarchive='yes'
+	    libarchivelibs=" -larchive -lz -lbz2"
+	    libarchivedir=" -I/usr/local/include"
+	fi
+    fi
 fi
 
  if test -n $cicapmods; then
@@ -12669,7 +12693,7 @@ else
 fi
 
 
-CFLAGS="$CFLAGS $cicapflags"
+CFLAGS="$CFLAGS $cicapflags $libarchivedir"
 MODULES_LIBADD="$cicaplibs $libarchivelibs"
 UTILITIES_LIBADD="$cicapliblibs"
 UTILITIES_CFLAGS="$cicaplibflags"

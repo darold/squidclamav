@@ -81,14 +81,34 @@ if test -z "$cicapdir"; then
 fi
 
 # Check for libarchive
-if test -f "/usr/include/archive.h" || test -f "/usr/local/include/archive.h"; then
+AC_ARG_WITH(libarchive,
+[  --with-libarchive	Where to find archive.h ],
+[
+    if test -f $withval/archive.h; then
 	haslibarchive='yes'
 	libarchivelibs=" -larchive -lz -lbz2"
+        libarchivedir=" -I$withval"
+    fi
+],
+)
+
+if test -z "$haslibarchive"; then
+    if test -f "/usr/include/archive.h"; then
+	haslibarchive='yes'
+	libarchivelibs=" -larchive -lz -lbz2"
+	libarchivedir=""
+    else
+	if test -f "/usr/local/include/archive.h"; then
+	    haslibarchive='yes'
+	    libarchivelibs=" -larchive -lz -lbz2"
+	    libarchivedir=" -I/usr/local/include"
+	fi
+    fi
 fi
 
 AM_CONDITIONAL(CICAPMODULESDIR, [test -n $cicapmods])
 
-CFLAGS="$CFLAGS $cicapflags"
+CFLAGS="$CFLAGS $cicapflags $libarchivedir"
 MODULES_LIBADD="$cicaplibs $libarchivelibs"
 UTILITIES_LIBADD="$cicapliblibs"
 UTILITIES_CFLAGS="$cicaplibflags"
