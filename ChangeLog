@@ -1,3 +1,25 @@
+2019-03-18 version 7.1
+
+This version fixes some bugs reported by users since previous release
+and add a new configure option to set the search path to libarchive
+header file.
+
+  * Add --with-libarchive configure option to specify where to find
+    archive.h. It is searched in /usr/include and /usr/local/include
+    by default, if the header file is not in these directory you must
+    use this option. Example: ./configure --with-libarchive=/opt/csw.
+
+Full list of changes:
+
+  - Fix some compilation warnings.
+  - Fix typos/translation error. Thanks to Yuri Voinov for the patch.
+  - Allow base dir to --with-libarchive option, /opt/csw/ instead of
+    /opt/csw/include. Thanks to Yuri Voinov for the report.
+  - Fix formatting of configure usage output. Thanks to Yuri Voinov
+    for the report.
+  - Defined max() macro even if libarchive is not used. Thanks to Yuri
+    Voinov for the report.
+
 2019-03-16 version 7.0
 
 This major version adds some useful features, new configuration directives
