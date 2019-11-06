@@ -2,7 +2,7 @@ PATTERN UPDATE
 
   For reload of pattern files after updated via freshclam, the packages
   installs an update script within /etc/clamav/onupdateexecute.d/ as 
-  libc-icap-mod-vir
+  libc-icap-mod-squidclamav.
  
   The feature in freshclam isn't activated by default or by this package.
   To enable this feature you will have to add to /etc/clamav/freshclam.conf:

@@ -1,0 +1,25 @@
+#!/bin/sh
+
+. "$(dirname $0)/toolbox.sh"
+
+c_icap_enable_squidclamav() {
+  echo 'Enabling squidclamav'
+  append_line 'Include squidclamav.conf' /etc/c-icap/c-icap.conf
+}
+
+clamd_enable() {
+  service clamav-freshclam stop
+  freshclam 2>&1
+  service clamav-daemon start
+}
+
+c_icap_enable
+c_icap_enable_squidclamav
+clamd_enable
+c_icap_start
+c_icap_test_basic
+c_icap_test_service 'squidclamav' 'SquidClamav Antivirus service'
+echo 'Testing Eicar'
+c-icap-client -i 127.0.0.1 -s virus_scan -f "$(dirname $0)/eicar.com.txt" -v 2>&1 >/dev/null \
+  | grep -qF '403 Forbidden' \
+  || error 'Eicar Test File not forbidden'

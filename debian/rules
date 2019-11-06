@@ -7,10 +7,10 @@
 export DH_OPTIONS
 
 # More hardening
-export DEB_BUILD_MAINT_OPTIONS	:= hardening=+bindnow
+export DEB_BUILD_MAINT_OPTIONS	:= hardening=+all
 
 %:
-	dh $@ --with autoreconf
+	dh $@
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
@@ -21,17 +21,25 @@ override_dh_auto_configure:
 		--libexecdir=/usr/lib/c_icap
 
 override_dh_auto_install:
-	mkdir -p debian/tmp/etc/c-icap
 	dh_auto_install
 	# install clamav pattern update script
 	mkdir -p debian/libc-icap-mod-squidclamav/etc/clamav/onupdateexecute.d/
-	cp debian/libc-icap-mod-virus-scan.pattern-update \
+	cp debian/libc-icap-mod-squidclamav.pattern-update \
 		debian/libc-icap-mod-squidclamav/etc/clamav/onupdateexecute.d/libc-icap-mod-squidclamav
 	chmod 0755 debian/libc-icap-mod-squidclamav/etc/clamav/onupdateexecute.d/libc-icap-mod-squidclamav
 
-override_dh_fixperms:
+override_dh_install:
+	cp etc/squidclamav.conf \
+	   debian/libc-icap-mod-squidclamav/etc/c-icap/squidclamav.conf
+	mv debian/libc-icap-mod-squidclamav/etc/c-icap/squidclamav.conf.default \
+	   debian/libc-icap-mod-squidclamav/usr/share/squidclamav/squidclamav.conf.default
+	rm debian/libc-icap-mod-squidclamav/usr/lib/*/c_icap/*.la
+	dh_missing --list-missing
+
+override_dh_fixperms-arch:
 	dh_fixperms
 	# config permissions
 	chmod 0644 debian/libc-icap-mod-squidclamav/etc/c-icap/*
 	# template permissions
 	chmod 0644 debian/libc-icap-mod-squidclamav/usr/share/c_icap/templates/squidclamav/*/*
+	chmod 0644 debian/libc-icap-mod-squidclamav/usr/share/squidclamav/squidclamav.conf.default

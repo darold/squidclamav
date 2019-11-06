@@ -71,7 +71,7 @@ USAGE
 
             /usr/local/squid/sbin/squid -v | grep "enable-icap-client"
 
-    If it is not enable you must reinstall Squid with this configuration
+    If it is not enabled you must reinstall Squid with this configuration
     option or install the additional packages.
 
     Once you have it enabled, to integrate c-icap and SquidClamav to your
@@ -282,7 +282,7 @@ USAGE
 
 CONFIGURATION
     By default, the configuration file must be /etc/squidclamav.conf, you
-    may not use an other path unless you change it in the source code (see
+    may not use another path unless you change it in the source code (see
     src/squidclamav.h).
 
     SquidClamav installation will create a default file with the maximum
@@ -400,7 +400,7 @@ CONFIGURATION
     cgi-script or send an email.
 
    Maximun file size scanned
-    The maxsize directive allows to disable virus scan completely for files
+    The maxsize directive allows one to disable virus scan completely for files
     bigger than the value in bytes. Default is 0, no size limit as you may
     want to control download size into squid.conf or clamd.
 
@@ -654,7 +654,7 @@ CONFIGURATION
 
    Libarchive support
     Allow squidclamav to uncompress archives and filter according to
-    user-defined rules before passing them to clamav. See directives bellow
+    user-defined rules before passing them to clamav. See directives below
     for more details.
 
     enable_libarchive

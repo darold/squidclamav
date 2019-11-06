@@ -1,10 +1,35 @@
+c-icap-module-squidclamav (1:7.1-2) unstable; urgency=medium
+
+  * Updated debian folder.
+  * Added enter on below changelog 7.0 and 7.1, needs empty line.
+  * d/control, Bump libicapapi-dev Build-dep to 0.5
+  * Lintian and other housekeeping:
+    - Added Vcs-* fields to the correct locations.
+    - Standards-Version: 4.2.1
+    - Priority: extra -> optional
+    - Fix insecure-copyright-format-uri
+    - Debhelper compat 9 -> 11
+  * Added tests for squidclamav in debian/tests
+  * d/watch updated, uuscan now works.
+  * Set myself as Uploader, set Gilles Darold as Maintainer
+  * Bump c-icap depend (>=1:0.3.2~) to (>=1:0.5.2), Breaks c-icap (<<1:0.5.1)
+  * Updated Description of libc-icap-mod-squidclamav.
+  * Change filenames and content to match the packages in debian folder.
+  * d/rules, updated to newer standards.
+  * Added debian/build-orig.sh
+    - this provides a simple way to build the squidclamav module.
+
+ -- Louis van Belle <louis@van-belle.nl>  Mon, 04 Nov 2019 14:10:48 +0100
+
 c-icap-module-squidclamav (1:7.1-1-custom1) unstable; urgency=medium
+
   * New upstream release 7.1, changelog from source:
     - https://github.com/darold/squidclamav/blob/master/ChangeLog
 
  -- Gilles Darold <gilles@darold.net>  Mon, 18 Mar 2019 08:15:41 +0100
 
 c-icap-module-squidclamav (1:7.0-1-custom1) unstable; urgency=medium
+
   * New upstream release 7.0, changelog from source:
     - https://github.com/darold/squidclamav/blob/master/ChangeLog
 

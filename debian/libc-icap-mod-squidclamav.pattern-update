@@ -1,0 +1,8 @@
+#!/bin/sh
+
+#
+# This Script reconfigures c-icap virus_scan module after Clamav Pattern update
+# It gets installed as /etc/clamav/onupdateexecute.d/libc-icap-mod-squidclamav
+#
+
+/bin/echo -n "srv_clamav:dbreload" > /run/c-icap/c-icap.ctl
