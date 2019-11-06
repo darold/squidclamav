@@ -52,8 +52,9 @@ then
     echo
     echo "Build the package:"
     echo "dpkg-buildpackage -uc -us -sa"
+    echo
     echo "The resulting deb(s) can be found here : ls ..\*.deb"
-    echo "And cleanup you system with : "
+    echo "And cleanup your system with : "
     echo "apt remove --autoremove debhelper libclamav-dev libdb-dev libicapapi-dev libltdl-dev"
     echo " ---------------------- "
 else
