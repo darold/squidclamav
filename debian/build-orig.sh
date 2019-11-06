@@ -35,7 +35,6 @@ else
     exit 1
 fi
 
-echo "1 Test"
 rm -rf $SQUIDCLAMAVTMP
 
 cd $STARTPATH
@@ -47,7 +46,15 @@ then
     echo " ---------------------- "
     echo "To build the debian packages, run the following: "
     echo "cd $PACKAGENAME_DEBIAN-$PACKAGE_VER/"
+    echo
+    echo "Install the needed build depends : "
+    echo "apt install debhelper libclamav-dev libdb-dev libicapapi-dev libltdl-dev --autoremove"
+    echo
+    echo "Build the package:"
     echo "dpkg-buildpackage -uc -us -sa"
+    echo "The resulting deb(s) can be found here : ls ..\*.deb"
+    echo "And cleanup you system with : "
+    echo "apt remove --autoremove debhelper libclamav-dev libdb-dev libicapapi-dev libltdl-dev"
     echo " ---------------------- "
 else
     echo "Unable find folder $PACKAGENAME_DEBIAN-$PACKAGE_VER, did something go wrong?"
