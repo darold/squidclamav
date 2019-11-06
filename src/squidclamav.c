@@ -2049,7 +2049,7 @@ int create_pipe(char *command)
                             debugs(0, "ERROR unable to fopen command's child stdout, disabling it.\n");
                             usepipe = 0;
                         } else {
-                            debugs(1, "DEBUG bidirectional pipe to %s childs ready...\n", command);
+                            debugs(1, "DEBUG bidirectional pipe to %s children ready...\n", command);
                             usepipe = 1;
                         }
                     }
