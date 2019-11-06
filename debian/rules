@@ -42,3 +42,4 @@ override_dh_fixperms-arch:
 	chmod 0644 debian/libc-icap-mod-squidclamav/etc/c-icap/*
 	# template permissions
 	chmod 0644 debian/libc-icap-mod-squidclamav/usr/share/c_icap/templates/squidclamav/*/*
+	chmod 0644 debian/libc-icap-mod-squidclamav/usr/share/squidclamav/squidclamav.conf.default
