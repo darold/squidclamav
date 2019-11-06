@@ -1,0 +1,3 @@
+etc/c-icap/squidclamv.conf
+usr/lib/*/c_icap/squidclamav.so
+usr/share/c_icap/templates/squidclamav
