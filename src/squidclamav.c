@@ -1893,6 +1893,8 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 
     if ( ci_http_response_headers(req))
 	ci_http_response_reset_headers(req);
+    else
+       ci_http_response_create(req, 1, 1);
     ci_http_response_add_header(req, "HTTP/1.0 403 Forbidden");
     ci_http_response_add_header(req, "Server: C-ICAP");
     ci_http_response_add_header(req, "Connection: close");
