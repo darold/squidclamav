@@ -2139,13 +2139,16 @@ int connectINET(char *serverHost, uint16_t serverPort)
     server.sin_family = AF_INET;
     server.sin_port = htons(serverPort);
 
-    if ((he = gethostbyname(serverHost)) == 0)
+    he = gethostbyname(serverHost);
+    if (he)
+	    server.sin_addr = *(struct in_addr *) he->h_addr_list[0];
+    else
     {
         close(asockd);
         debugs(0, "ERROR Can't lookup hostname of %s\n", serverHost);
         return -1;
     }
-    server.sin_addr = *(struct in_addr *) he->h_addr_list[0];
+
     sigaction(SIGALRM, &action, NULL);
     alarm(timeout);
 
