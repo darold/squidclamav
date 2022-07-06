@@ -2118,55 +2118,65 @@ void connect_timeout()
 {
     // doesn't actually need to do anything
 }
-
 int connectINET(char *serverHost, uint16_t serverPort)
 {
     struct sockaddr_in server;
-    struct hostent *he;
     int asockd;
     struct sigaction action;
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags |= AI_CANONNAME;
+
     action.sa_handler = connect_timeout;
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_RESTART;
 
     memset ((char *) &server, 0, sizeof (server));
     server.sin_addr.s_addr = inet_addr(serverHost);
+
     if ((asockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
         debugs(0, "ERROR Can't create a socket.\n");
         return -1;
     }
 
-    server.sin_family = AF_INET;
-    server.sin_port = htons(serverPort);
-
-    he = gethostbyname(serverHost);
-    if (he)
-	    server.sin_addr = *(struct in_addr *) he->h_addr_list[0];
-    else
+    if (getaddrinfo (serverHost, NULL, &hints, &res) != 0)
     {
-        close(asockd);
-        debugs(0, "ERROR Can't lookup hostname of %s\n", serverHost);
-        return -1;
+      close(asockd);
+      debugs(0, "ERROR Can't lookup hostname of %s\n", serverHost);
+      return -1;
     }
+
+    server.sin_addr = ((struct sockaddr_in *)res->ai_addr)->sin_addr;
+    server.sin_port = htons(serverPort);
+    server.sin_family = AF_INET;
 
     sigaction(SIGALRM, &action, NULL);
     alarm(timeout);
 
     if (connect (asockd, (struct sockaddr *) &server, sizeof (struct sockaddr_in)) < 0) {
         close (asockd);
+        if (res)
+          freeaddrinfo(res);
         debugs(0, "ERROR Can't connect on %s:%d.\n", serverHost,serverPort);
         return -1;
     }
     int err = errno;
     alarm(0);
     if (err == EINTR) {
+        if (res)
+          freeaddrinfo(res);
         close(asockd);
         debugs(0, "ERROR Timeout connecting to clamd on %s:%d.\n", serverHost,serverPort);
     }
 
+    if (res)
+      freeaddrinfo(res);
     return asockd;
 }
-
 
 /**
  * Searches all occurrences of old into s
