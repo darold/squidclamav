@@ -1663,7 +1663,7 @@ int add_pattern(char *s, int level)
         free(first);
         return 0;
     }
-    strncpy(currItem.pattern, first, strlen(first) + 1);
+    strcpy(currItem.pattern, first);
     if ((stored = regcomp(&currItem.regexv, currItem.pattern, currItem.flag)) != 0) {
         debugs(0, "ERROR Invalid regex pattern: %s\n", currItem.pattern);
     } else {
@@ -1866,7 +1866,8 @@ int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
        malware += 8;
 
    memset(buf, '\0', len);
-   strncpy(buf, malware, strlen(malware) - strlen(" FOUND"));
+   len = strlen(malware) - strlen(" FOUND") + 1;
+   xstrncpy(buf, malware, len);
 
    return strlen(buf);
 }
@@ -1875,14 +1876,17 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 {
     char buf[LOG_URL_SIZE];
     char *malware;
+    int len;
 
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
 
     debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, data->malware);
-    malware = (char *) malloc (sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1) );
-    memset(malware, 0, sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1));
-    strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
+
+    len = strlen(data->malware) - strlen(" FOUND") + 1;
+    malware = (char *) malloc (sizeof (char) * len);
+    memset(malware, 0, sizeof (char) * len);
+    xstrncpy(malware, data->malware, len);
 
     if ( ci_http_response_headers(req))
 	ci_http_response_reset_headers(req);
@@ -1952,13 +1956,15 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
     char buf[MAX_URL];
     ci_membuf_t *error_page;
     char *malware;
+    int len;
 
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
 
-    malware = (char *) malloc (sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1) );
-    memset(malware, 0, sizeof (char) * (strlen(data->malware) - strlen(" FOUND") + 1));
-    strncpy(malware, data->malware, strlen(data->malware) - strlen(" FOUND"));
+    len  = strlen(data->malware) - strlen(" FOUND") + 1;
+    malware = (char *) malloc (sizeof (char) * len);
+    memset(malware, 0, sizeof (char) * len);
+    xstrncpy(malware, data->malware, len);
 
     new_size = strlen(blocked_header_message) + strlen(redirect) + strlen(blocked_footer_message) + 10;
 
