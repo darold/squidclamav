@@ -443,15 +443,17 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    }
 
 	    if (scan_mode == SCAN_ALL) {
-	        /* Check the URL against SquidClamav Whitelist */
-	        if (simple_pattern_compare(httpinf.url, WHITELIST) == 1) {
-		    debugs(2, "DEBUG No antivir check (WHITELIST match) for url: %s\n", httpinf.url);
+	        /* Check the URL against SquidClamav whitelist/abort entries */
+	        if ( simple_pattern_compare(httpinf.url, WHITELIST) == 1
+			|| simple_pattern_compare(httpinf.url, ABORT) == 1 ) {
+		    debugs(2, "DEBUG No antivir check (WHITELIST/ABORT match) for url: %s\n", httpinf.url);
 		    return CI_MOD_ALLOW204;
 	        }
 	    } else {
-	        /* Check the URL against SquidClamav blacklist */
-	        if (simple_pattern_compare(httpinf.url, BLACKLIST) == 1) {
-		    debugs(2, "DEBUG antivir check (BLACKLIST match) for url: %s\n", httpinf.url);
+	        /* Check the URL against SquidClamav blacklist/scan entries */
+	        if ( simple_pattern_compare(httpinf.url, BLACKLIST) == 1
+	        	|| simple_pattern_compare(httpinf.url, SCAN) == 1 ) {
+		    debugs(2, "DEBUG antivir check (BLACKLIST/SCAN match) for url: %s\n", httpinf.url);
 		    scanit = 1;
 	        }
 	    }
@@ -467,20 +469,6 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 		clientip = (char *)malloc(sizeof(char)*2);
 		strcpy((char *)clientip, "-");
 		debugs(0, "ERROR clientip is null, you must set 'icap_send_client_ip on' into squid.conf\n");
-	    }
-
-	    if (scan_mode == SCAN_ALL) {
-	        /* Check the URL against SquidClamav abort */
-	        if (simple_pattern_compare(httpinf.url, ABORT) == 1) {
-		    debugs(2, "DEBUG No antivir check (ABORT match) for url: %s\n", httpinf.url);
-		    return CI_MOD_ALLOW204;
-	        }
-	    } else {
-	        /* Check the URL against SquidClamav scan */
-	        if (simple_pattern_compare(httpinf.url, SCAN) == 1) {
-		    debugs(2, "DEBUG antivir check (SCAN match) for url: %s\n", httpinf.url);
-		    scanit = 1;
-	        }
 	    }
 
 	    if (safebrowsing == 1) {
@@ -1168,42 +1156,44 @@ int simple_pattern_compare(const char *str, const int type)
     int i = 0;
 
     /* pass througth all regex pattern */
-    for (i = 0; i < pattc; i++) {
-        if ( (patterns[i].type == type) && (regexec(&patterns[i].regexv, str, 0, 0, 0) == 0) ) {
-            switch(type) {
-                /* return 1 if string matches whitelist pattern */
+    for (i = 0; i < pattc; i++)
+    {
+        if ( (patterns[i].type == type) && (regexec(&patterns[i].regexv, str, 0, 0, 0) == 0) )
+	{
+            switch(type)
+	    {
+                /* return 1 if string matches whitelist/abort pattern */
+                case ABORT:
+                    debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
                 case WHITELIST:
                     debugs(2, "DEBUG whitelist (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
+                /* return 1 if string matches blacklist/scan pattern */
+                case SCAN:
+                    debugs(2, "DEBUG scan (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
                 case BLACKLIST:
                     debugs(2, "DEBUG blacklist (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
-                    /* return 1 if string matches abort pattern */
-                case ABORT:
-                    debugs(2, "DEBUG abort (%s) matched: %s\n", patterns[i].pattern, str);
-                    return 1;
-                    /* return 1 if string matches scan pattern */
-                case SCAN:
-                    debugs(2, "DEBUG scan (%s) matched: %s\n", patterns[i].pattern, str);
-                    return 1;
-                    /* return 1 if string matches trustuser pattern */
+                /* return 1 if string matches trustuser pattern */
                 case TRUSTUSER:
                      debugs(2, "DEBUG trustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
-                    /* return 1 if string matches untrustuser pattern */
+                /* return 1 if string matches untrustuser pattern */
                 case UNTRUSTUSER:
                     debugs(2, "DEBUG untrustuser (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
-                    /* return 1 if string matches abortcontent pattern */
+                /* return 1 if string matches abortcontent pattern */
                 case ABORTCONTENT:
                     debugs(2, "DEBUG abortcontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
-                    /* return 1 if string matches scancontent pattern */
+                /* return 1 if string matches scancontent pattern */
                 case SCANCONTENT:
                     debugs(2, "DEBUG scancontent (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
 #ifdef HAVE_LIBARCHIVE
-                    /* return 1 if string matches banfile pattern (libarchive) */
+                /* return 1 if string matches banfile pattern (libarchive) */
                 case BANFILE:
                     debugs(2, "DEBUG banfile (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
@@ -1224,28 +1214,38 @@ int client_pattern_compare(const char *ip, char *name)
     int i = 0;
 
     /* pass througth all regex pattern */
-    for (i = 0; i < pattc; i++) {
-        if ( (scan_mode == SCAN_ALL) && (patterns[i].type == TRUSTCLIENT) ) {
+    for (i = 0; i < pattc; i++)
+    {
+        if ( (scan_mode == SCAN_ALL) && (patterns[i].type == TRUSTCLIENT) )
+	{
             /* Look at client ip pattern matching */
             /* return 1 if string matches ip TRUSTCLIENT pattern */
-            if (regexec(&patterns[i].regexv, ip, 0, 0, 0) == 0) {
+            if (regexec(&patterns[i].regexv, ip, 0, 0, 0) == 0)
+	    {
                 debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, ip);
                 return 1;
-                /* Look at client name pattern matching */
-                /* return 2 if string matches fqdn TRUSTCLIENT pattern */
-            } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0)) {
+            }
+            /* Look at client name pattern matching */
+            /* return 2 if string matches fqdn TRUSTCLIENT pattern */
+	    else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) == 0))
+	    {
                 debugs(2, "DEBUG trustclient (%s) matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
-        } else if ( (scan_mode == SCAN_NONE) && (patterns[i].type == UNTRUSTCLIENT) ) {
+        }
+	else if ( (scan_mode == SCAN_NONE) && (patterns[i].type == UNTRUSTCLIENT) )
+	{
             /* Look at client ip pattern matching */
             /* return 1 if string doesn't matches ip UNTRUSTCLIENT pattern */
-            if (regexec(&patterns[i].regexv, ip, 0, 0, 0) != 0) {
+            if (regexec(&patterns[i].regexv, ip, 0, 0, 0) != 0)
+	    {
                 debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, ip);
                 return 1;
-                /* Look at client name pattern matching */
-                /* return 2 if string doesn't matches fqdn UNTRUSTCLIENT pattern */
-            } else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) != 0)) {
+            }
+            /* Look at client name pattern matching */
+            /* return 2 if string doesn't matches fqdn UNTRUSTCLIENT pattern */
+	    else if ((name != NULL) && (regexec(&patterns[i].regexv, name, 0, 0, 0) != 0))
+	    {
                 debugs(3, "DEBUG untrustclient (%s) not matched: %s\n", patterns[i].pattern, name);
                 return 2;
             }
@@ -1626,17 +1626,10 @@ int add_pattern(char *s, int level)
         currItem.type = BANFILE;
         banfile = 1;
 #endif
-    } else if(strcmp(type, "whitelist") == 0) {
+    } else if (strcmp(type, "whitelist") == 0 || strcmp(type, "blacklist") == 0) {
         currItem.type = WHITELIST;
-	if (level == 0) {
-		if (readFileContent(first, type) == 1) {
-			free(type);
-			free(first);
-			return 1;
-		}
-	}
-    } else if(strcmp(type, "blacklist") == 0) {
-        currItem.type = BLACKLIST;
+	if (strcmp(type, "blacklist") == 0)
+		currItem.type = BLACKLIST;
 	if (level == 0) {
 		if (readFileContent(first, type) == 1) {
 			free(type);
