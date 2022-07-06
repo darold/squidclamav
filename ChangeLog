@@ -1,3 +1,23 @@
+2022-07-06 version 7.2
+
+This version fixes some bugs reported by users since previous release
+and especially a crash with call to deprecated gethostbyname() function.
+
+Full list of changes:
+
+  - Update copyright year
+  - Fix compilation warning about strlen
+  - Add .gitignore file
+  - Merge some redundant code related to whitelist/abort and blacklist/scan.
+    Thanks to rdpmc Oleg for the report.
+  - Fix call to CGI::param without scalar context. Thanks to Frank Crawford
+    for the report.
+  - Replace deprecated gethostbyname() by getaddrinfo(). Thanks to Jean-noel
+    Leclercq for the patch.
+  - Create http response entity if not present in icap request. Thanks to
+    Saurabh Ram Tripathi for the patch.
+  - Re-work/Updated debian/*. Thanks to Louis van Belle for the patch.
+
 2019-03-18 version 7.1
 
 This version fixes some bugs reported by users since previous release
