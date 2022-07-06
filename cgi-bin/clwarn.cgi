@@ -14,7 +14,7 @@ $source =~ s/\/-//;
 my $user = CGI::escapeHTML(scalar $cgi->param('user')) || '';
 
 # libarchive support:
-my $recover = CGI::escapeHTML($cgi->param('recover')) || '';
+my $recover = CGI::escapeHTML(scalar $cgi->param('recover')) || '';
 $recover =~ s/^\(null\)$//;
 my $default_recoverurl = 'https://' . $cgi->server_name() . "/recover/?id=" if ($recover);
 
