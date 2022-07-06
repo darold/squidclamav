@@ -779,7 +779,7 @@ file.
 
 =head1 LICENSE
 
-Copyright (c) 2005-2019 Gilles Darold - All rights reserved.
+Copyright (c) 2005-2022 Gilles Darold - All rights reserved.
 
 Some code is Copyright (C) 2004-2008 Christos Tsantilas
 
