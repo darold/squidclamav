@@ -1862,11 +1862,12 @@ int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
    av_req_data_t *data = ci_service_data(req);
    char *malware = data->malware;
 
+   len = strlen(malware);
    if (strncmp("stream: ", malware, strlen("stream: ")) == 0)
        malware += 8;
 
    memset(buf, '\0', len);
-   len = strlen(malware) - strlen(" FOUND") + 1;
+   len = len - strlen(" FOUND") + 1;
    xstrncpy(buf, malware, len);
 
    return strlen(buf);
@@ -1876,14 +1877,14 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 {
     char buf[LOG_URL_SIZE];
     char *malware;
-    int len;
+    int len = strlen(data->malware);
 
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
 
     debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, data->malware);
 
-    len = strlen(data->malware) - strlen(" FOUND") + 1;
+    len = len - strlen(" FOUND") + 1;
     malware = (char *) malloc (sizeof (char) * len);
     memset(malware, 0, sizeof (char) * len);
     xstrncpy(malware, data->malware, len);
@@ -1956,12 +1957,12 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
     char buf[MAX_URL];
     ci_membuf_t *error_page;
     char *malware;
-    int len;
+    int len = strlen(data->malware);
 
     if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
        data->malware += 8;
 
-    len  = strlen(data->malware) - strlen(" FOUND") + 1;
+    len  = len - strlen(" FOUND") + 1;
     malware = (char *) malloc (sizeof (char) * len);
     memset(malware, 0, sizeof (char) * len);
     xstrncpy(malware, data->malware, len);
