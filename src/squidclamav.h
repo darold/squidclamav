@@ -95,6 +95,7 @@ struct IN_BUFF {
 #define BLACKLIST      8
 #define UNTRUSTUSER    9
 #define UNTRUSTCLIENT 10
+#define REJECT_URL    11
 
 #ifdef HAVE_LIBARCHIVE
 /* libarchive */

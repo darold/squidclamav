@@ -437,7 +437,8 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    debugs(2, "DEBUG URL requested: %s\n", httpinf.url);
 
 	    /* CONNECT (https) and OPTIONS methods can not be scanned so abort */
-	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) ) {
+	    if ( (strcmp(httpinf.method, "CONNECT") == 0) || (strcmp(httpinf.method, "OPTIONS") == 0) )
+	    {
 		debugs(2, "DEBUG method %s can't be scanned.\n", httpinf.method);
 		return CI_MOD_ALLOW204;
 	    }
@@ -659,6 +660,18 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 #endif
 
     debugs(2, "DEBUG ending request data handler.\n");
+
+    /* Check if this url must be rejected */
+    if ( simple_pattern_compare(data->url, REJECT_URL) == 1) {
+	data->virus = 0;
+	debugs(0, "LOG reject matched [%s]\n", data->url);
+	/* inform user why this url was banned */
+	snprintf(clbuf, sizeof(clbuf), "URL REJECTED");
+	data->malware = ci_buffer_alloc(13);
+	strcpy(data->malware, clbuf);
+	generate_response_page(req, data);
+        return CI_MOD_DONE;
+    }
 
     /* Nothing more to scan */
     if (!data || !data->body)
@@ -1198,6 +1211,9 @@ int simple_pattern_compare(const char *str, const int type)
                     debugs(2, "DEBUG banfile (%s) matched: %s\n", patterns[i].pattern, str);
                     return 1;
 #endif
+                case REJECT_URL:
+                    debugs(2, "DEBUG reject url (%s) matched: %s\n", patterns[i].pattern, str);
+                    return 1;
                 default:
                     debugs(0, "ERROR unknown pattern match type: %s\n", str);
                     return -1;
@@ -1637,6 +1653,8 @@ int add_pattern(char *s, int level)
 			return 1;
 		}
 	}
+    } else if (strcmp(type, "reject_url") == 0) {
+        currItem.type = REJECT_URL;
     } else if(strcmp(type, "trustuser") == 0) {
         currItem.type = TRUSTUSER;
     } else if(strcmp(type, "trustclient") == 0) {
@@ -1645,7 +1663,11 @@ int add_pattern(char *s, int level)
         currItem.type = UNTRUSTUSER;
     } else if(strcmp(type, "untrustclient") == 0) {
         currItem.type = UNTRUSTCLIENT;
-    } else if ( (strcmp(type, "squid_ip") != 0) && (strcmp(type, "squid_port") != 0) && (strcmp(type, "maxredir") != 0) && (strcmp(type, "useragent") != 0) && (strcmp(type, "trust_cache") != 0) ) {
+    }
+    else if ( (strcmp(type, "squid_ip") != 0) && (strcmp(type, "squid_port") != 0)
+		    && (strcmp(type, "maxredir") != 0) && (strcmp(type, "useragent") != 0)
+		    && (strcmp(type, "trust_cache") != 0) )
+    {
         fprintf(stderr, "WARNING Bad configuration keyword: %s\n", s);
         free(type);
         free(first);
