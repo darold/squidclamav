@@ -400,9 +400,9 @@ CONFIGURATION
     cgi-script or send an email.
 
    Maximun file size scanned
-    The maxsize directive allows one to disable virus scan completely for files
-    bigger than the value in bytes. Default is 0, no size limit as you may
-    want to control download size into squid.conf or clamd.
+    The maxsize directive allows one to disable virus scan completely for
+    files bigger than the value in bytes. Default is 0, no size limit as you
+    may want to control download size into squid.conf or clamd.
 
             maxsize 2M
 
@@ -435,9 +435,9 @@ CONFIGURATION
 
    Safebrowsing
     ClamAV 0.95 introduced support for Google Safe Browsing database. The
-    database is packed inside a CVD file and distributed through our mirror
-    network as safebrowsing.cvd. This feature is disabled by default on all
-    clamav installations.
+    database is packed inside a CVD file and distributed through ClamAv
+    mirror network as safebrowsing.cvd. This feature is disabled by default
+    on all clamav installations.
 
     In order to enable this feature, you must first add "SafeBrowsing Yes"
     to freshclam.conf. There is no option in clamd.conf. If the engine finds
@@ -454,6 +454,18 @@ CONFIGURATION
         the corresponding behavior in clamd by enabling SafeBrowsing into
         freshclam.conf Enabling it will first make a safe browsing request
         to clamd and then the virus scan request.
+
+   URL rejection
+    SquidClamav allows to reject certain URL based on a regular expression.
+
+    In order to enable this feature, you must first add "reject_url pattern"
+    to freshclam.conf.
+
+    reject_url
+        Allow to specify a regular expression used to reject any matching
+        URL. For example:
+
+            reject_url ^.*\.(ade|adp|app|asd|asf|asx|bas|bat|cab|chm|cmd|com|cpl|crt|dll|exe|fxp|hlp|hta|hto|inf|ini|ins|isp|jse?|lib|lnk|mdb|mde|msc|msi|msp|mst|ocx|pcd|pif|prg|reg|scr|sct|sh|shb|shs|sys|url|vb|vbe|vbs|vcs|vxd|wmd|wms|wmz|wsc|wsf|wsh)$
 
    Control virus scan
     There is two scan mode to fully control squidclamav behavior. The first
@@ -756,7 +768,7 @@ ACKNOWLEDGEMENT
     file.
 
 LICENSE
-    Copyright (c) 2005-2022 Gilles Darold - All rights reserved.
+    Copyright (c) 2005-2023 Gilles Darold - All rights reserved.
 
     Some code is Copyright (C) 2004-2008 Christos Tsantilas
 
