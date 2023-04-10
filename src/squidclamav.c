@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2022 Gilles Darold
+ *  Copyright (C) 2005-2023 Gilles Darold
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
