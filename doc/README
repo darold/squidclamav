@@ -465,7 +465,7 @@ CONFIGURATION
         Allow to specify a regular expression used to reject any matching
         URL. For example:
 
-            reject_url ^.*\.(ade|adp|app|asd|asf|asx|bas|bat|cab|chm|cmd|com|cpl|crt|dll|exe|fxp|hlp|hta|hto|inf|ini|ins|isp|jse?|lib|lnk|mdb|mde|msc|msi|msp|mst|ocx|pcd|pif|prg|reg|scr|sct|sh|shb|shs|sys|url|vb|vbe|vbs|vcs|vxd|wmd|wms|wmz|wsc|wsf|wsh)$
+            reject_url ^[^\?#]+\.(ade|adp|app|asd|asf|asx|bas|bat|cab|chm|cmd|com|cpl|crt|dll|exe|fxp|hlp|hta|hto|inf|ini|ins|isp|jse?|lib|lnk|mdb|mde|msc|msi|msp|mst|ocx|pcd|pif|prg|reg|scr|sct|sh|shb|shs|sys|url|vb|vbe|vbs|vcs|vxd|wmd|wms|wmz|wsc|wsf|wsh)([\?#].*)?$
 
    Control virus scan
     There is two scan mode to fully control squidclamav behavior. The first

@@ -1384,7 +1384,7 @@ int add_pattern(char *s, int level)
     /* Config file directives are construct as follow: name value */
     type = (char *)malloc(sizeof(char)*LOW_CHAR);
     first = (char *)malloc(sizeof(char)*LOW_BUFF);
-    stored = sscanf(s, "%31s %255[^#]", type, first);
+    stored = sscanf(s, "%31s %255s", type, first);
 
     if (stored < 2) {
         debugs(0, "FATAL Bad configuration line for [%s]\n", s);
