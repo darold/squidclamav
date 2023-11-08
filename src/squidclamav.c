@@ -230,8 +230,8 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
 
 
     /* allocate memory for some global variables */
-    clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
-    memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
+    clamd_curr_ip = (char *) malloc (sizeof (char) * LOW_BUFF);
+    memset(clamd_curr_ip, 0, sizeof (char) * LOW_BUFF);
 
     /*********************
       read config files
@@ -273,8 +273,8 @@ void cfgreload_command(char *name, int type, char **argv)
 #endif
 
     /* reallocate memory for some global variables removed in free_global() */
-    clamd_curr_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
-    memset(clamd_curr_ip, 0, sizeof (char) * SMALL_CHAR);
+    clamd_curr_ip = (char *) malloc (sizeof (char) * LOW_BUFF);
+    memset(clamd_curr_ip, 0, sizeof (char) * LOW_BUFF);
 
     /* read configuration file */
     if (load_patterns() == 0)
@@ -2133,7 +2133,7 @@ int dconnect()
             if ( asockd != -1 ) {
                 debugs(1, "DEBUG Connected to Clamd (%s:%s)\n", ptr,clamd_port);
                 /* Store last working clamd */
-                xstrncpy(clamd_curr_ip, ptr, LOW_CHAR);
+                xstrncpy(clamd_curr_ip, ptr, LOW_BUFF);
                 break;
             }
             ptr = strtok(NULL, ",");
