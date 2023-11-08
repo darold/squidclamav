@@ -52,6 +52,8 @@
 #include "txtTemplate.h"
 #include <errno.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 /* headers for libarchive support */
 #ifdef HAVE_LIBARCHIVE
@@ -350,8 +352,7 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
     struct http_info httpinf;
     av_req_data_t *data = ci_service_data(req);
     const char *clientip;
-    struct hostent *clientname;
-    unsigned long ip;
+    char clientname[NI_MAXHOST];
     const char *username;
     int chkipdone = 0;
 
@@ -388,27 +389,34 @@ int squidclamav_check_preview_handler(char *preview_data, int preview_data_len,
 	    /* Check client Ip against SquidClamav trustclient */
 	    if ((clientip = ci_headers_value(req->request_header, "X-Client-IP")) != NULL) {
 		debugs(2, "DEBUG X-Client-IP: %s\n", clientip);
-		ip = inet_addr(clientip);
 		chkipdone = 0;
-		if (dnslookup == 1) {
-		    if ( (clientname = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET)) != NULL) {
-			if (clientname->h_name != NULL) {
+		if (dnslookup == 1)
+		{
+			struct sockaddr_in sa;
+
+			memset(&sa, 0, sizeof sa);
+			sa.sin_family = AF_INET;
+			inet_pton(AF_INET, clientip, &sa.sin_addr);
+
+			if (getnameinfo((struct sockaddr*)&sa, sizeof(sa),
+					  clientname, sizeof(clientname),
+					  NULL, 0, NI_NAMEREQD) == 0)
+			{
 		            if (scan_mode == SCAN_ALL) {
 			        /* if a TRUSTCLIENT match => no virus scan */
-			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(2, "DEBUG no antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+			        if (client_pattern_compare(clientip, clientname) > 0) {
+				    debugs(2, "DEBUG no antivir check (TRUSTCLIENT match) for client: %s(%s)\n", clientname, clientip);
 				    return CI_MOD_ALLOW204;
 			        }
 			    } else {
 			        /* if a UNTRUSTCLIENT match => virus scan */
-			        if (client_pattern_compare(clientip, clientname->h_name) > 0) {
-				    debugs(2, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname->h_name, clientip);
+			        if (client_pattern_compare(clientip, clientname) > 0) {
+				    debugs(2, "DEBUG antivir check (UNTRUSTCLIENT match) for client: %s(%s)\n", clientname, clientip);
 			            scanit = 1;
 			        }
 			    }
 			    chkipdone = 1;
 			}
-		    }
 		}
 		if (chkipdone == 0) {
 		    if (scan_mode == SCAN_ALL) {
