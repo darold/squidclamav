@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 
-AC_INIT([SquidClamav], [7.2], [http://squidclamav.darold.net/], [squidclamav])
+AC_INIT([SquidClamav], [7.3], [http://squidclamav.darold.net/], [squidclamav])
 
 AM_MAINTAINER_MODE
 AM_CONFIG_HEADER(config.h)

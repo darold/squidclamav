@@ -1,4 +1,22 @@
-2022-07-06 version 7.2
+2023-11-08 version 7.3
+
+This version fixes some bugs reported by users since previous release.
+
+Full list of changes:
+
+  - Fix size for clmd_curr_ip that could be a hostname up to 253 characters.
+    Thanks to Pavel Krustev for the report.
+  - Add the gplv3 licence content to COPYING file. Thanks to Simone Caronni
+    for the report.
+  - Use getnameinfo instead of deprecated gethostbyaddr. Thanks to Frank
+    Crawford for the report.
+  - Fix regexp compilation failure when it contains a #.
+  - Add reject_url configuration directive that allows to reject certain URL
+    based on a regular expression. For example:  reject_url ^.*\.(com|bat|exe)$
+  - Fix some compilation warnings on call to strncpy.
+  - Add a JP translation for clwarn.cgi. Thanks to Frank Crawford for the patch.
+
+2022-07-06 version 7.3
 
 This version fixes some bugs reported by users since previous release
 and especially a crash with call to deprecated gethostbyname() function.
