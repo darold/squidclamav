@@ -1,3 +1,11 @@
+2025-01-27 version 7.4
+
+This version adds compatibility with GCC v15.
+
+  - Patch for GCC15 issues - BZ2341381. Thanks to Frank Crawford for the patch.
+  - Update README for icap_service command change in Squid 3.4.x configuration.
+    Thanks to kimsaetbyeol for the patch.
+
 2023-11-08 version 7.3
 
 This version fixes some bugs reported by users since previous release.
@@ -16,7 +24,7 @@ Full list of changes:
   - Fix some compilation warnings on call to strncpy.
   - Add a JP translation for clwarn.cgi. Thanks to Frank Crawford for the patch.
 
-2022-07-06 version 7.3
+2022-07-06 version 7.2
 
 This version fixes some bugs reported by users since previous release
 and especially a crash with call to deprecated gethostbyname() function.
