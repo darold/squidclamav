@@ -2144,7 +2144,7 @@ int dconnect()
     return 0;
 }
 
-void connect_timeout()
+void connect_timeout(int sig)
 {
     // doesn't actually need to do anything
 }
