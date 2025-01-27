@@ -92,11 +92,9 @@ Here are the directives I use for Squid 3.4.x:
 	icap_client_username_header X-Authenticated-User
 	icap_preview_enable on
 	icap_preview_size 1024
-	icap_service service_avi_req reqmod_precache
-	icap://localhost:1344/squidclamav bypass=off
+	icap_service service_avi_req reqmod_precache icap://localhost:1344/squidclamav bypass=off
 	adaptation_access service_avi_req allow all
-	icap_service service_avi_resp respmod_precache
-	icap://localhost:1344/squidclamav bypass=on
+	icap_service service_avi_resp respmod_precache icap://localhost:1344/squidclamav bypass=on
 	adaptation_access service_avi_resp allow all
 
 If you don't know where to put them in squid.conf, just search for 'icap_.*'
@@ -796,7 +794,7 @@ file.
 
 =head1 LICENSE
 
-Copyright (c) 2005-2023 Gilles Darold - All rights reserved.
+Copyright (c) 2005-2025 Gilles Darold - All rights reserved.
 
 Some code is Copyright (C) 2004-2008 Christos Tsantilas
 
