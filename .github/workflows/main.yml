@@ -231,6 +231,8 @@ jobs:
 
           : > "$LOG"
 
+          chmod 644 "$WORK/clamd.conf"
+
           # run_case <desc> <virus|clean> <mode:req|resp> <url> <payload> <http-ctype-header>
           run_case() {
             local desc="$1" expect="$2" mode="$3" url="$4" file="$5" ctype="$6"
