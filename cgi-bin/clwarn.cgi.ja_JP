@@ -3,7 +3,7 @@ use strict;
 
 use CGI;
 
-my $VERSION = '7.3';
+my $VERSION = '7.4';
 
 my $cgi = new CGI;
 
