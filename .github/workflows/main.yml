@@ -236,9 +236,10 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Start c-icap"
+          touch "$WORK/c-icap-server.log" "$WORK/c-icap-access.log" "$WORK/c-icap.stdout"
           # Foreground (-N) + background within this step so it lives for the
           # whole test; -D sends debug to stdout as well as the ServerLog.
-          c-icap -N -D -d 2 -f "$WORK/c-icap.conf" > "$WORK/c-icap.stdout" 2>&1 &
+          sudo c-icap -N -D -d 2 -f "$WORK/c-icap.conf" > "$WORK/c-icap.stdout" 2>&1 &
           CICAP_PID=$!
           wait_port 127.0.0.1 "$ICAP_PORT" c-icap || { cat "$WORK/c-icap.stdout" || true; exit 1; }
           echo "::endgroup::"
@@ -284,7 +285,8 @@ jobs:
 
           echo "=================================="
           # stop c-icap (best effort)
-          kill "$CICAP_PID" 2>/dev/null || true
+          sudo kill "$CICAP_PID" 2>/dev/null || true
+          sudo pkill -f "c-icap -N" 2>/dev/null || true
 
           if [ "$fail" -ne 0 ]; then
             echo "SOME TESTS FAILED"
