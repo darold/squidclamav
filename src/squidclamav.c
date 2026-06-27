@@ -647,6 +647,359 @@ int squidclamav_io(char *wbuf, int *wlen, char *rbuf, int *rlen, int iseof,
     return CI_OK;
 }
 
+/* ----------------------------------------------------- */
+/*
+ * Multipart re-encoding (issue #58).
+ *
+ * When the HTTP body is a multipart/form-data upload we hand it to clamd
+ * wrapped as an e-mail so that libclamav decodes the multipart and scans
+ * every embedded file.  However libclamav reads e-mail bodies line by line
+ * (getline_from_mbox) and STRIPS NUL bytes while doing so.  A raw binary
+ * part (an .exe, etc.) therefore reaches the scanner with all its NUL bytes
+ * removed, no longer matches any signature and the virus is missed.
+ *
+ * The fix below rebuilds the multipart payload into a canonical MIME message
+ * whose part bodies are base64-encoded (Content-Transfer-Encoding: base64).
+ * base64 output is pure ASCII with no NUL bytes and is line-oriented, so it
+ * survives libclamav's line reader untouched; libclamav then base64-decodes
+ * each part back to the exact original bytes before scanning.
+ */
+
+/* Binary-safe memory search: find needle (nlen bytes) within hay (hlen bytes). */
+static const char *mem_find(const char *hay, size_t hlen, const char *needle, size_t nlen)
+{
+    if (nlen == 0 || hlen < nlen)
+        return NULL;
+    const char *end = hay + (hlen - nlen);
+    const char *p;
+    for (p = hay; p <= end; p++) {
+        if (p[0] == needle[0] && memcmp(p, needle, nlen) == 0)
+            return p;
+    }
+    return NULL;
+}
+
+/* Minimal growable byte buffer. */
+typedef struct growbuf {
+    char *data;
+    size_t len;
+    size_t cap;
+} growbuf_t;
+
+static int gb_reserve(growbuf_t *b, size_t extra)
+{
+    if (b->len + extra <= b->cap)
+        return 0;
+    size_t ncap = b->cap ? b->cap : 8192;
+    while (ncap < b->len + extra)
+        ncap *= 2;
+    char *nd = realloc(b->data, ncap);
+    if (!nd)
+        return -1;
+    b->data = nd;
+    b->cap = ncap;
+    return 0;
+}
+
+static int gb_append(growbuf_t *b, const char *src, size_t n)
+{
+    if (n == 0)
+        return 0;
+    if (gb_reserve(b, n) < 0)
+        return -1;
+    memcpy(b->data + b->len, src, n);
+    b->len += n;
+    return 0;
+}
+
+static int gb_puts(growbuf_t *b, const char *s)
+{
+    return gb_append(b, s, strlen(s));
+}
+
+/* Append src (n bytes) base64-encoded, wrapped at 76 columns with CRLF. */
+static const char b64tab[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static int gb_append_base64(growbuf_t *b, const unsigned char *src, size_t n)
+{
+    size_t i;
+    int col = 0;
+    char quad[4];
+    for (i = 0; i < n; i += 3) {
+        unsigned int o0 = src[i];
+        unsigned int o1 = (i + 1 < n) ? src[i + 1] : 0;
+        unsigned int o2 = (i + 2 < n) ? src[i + 2] : 0;
+        quad[0] = b64tab[o0 >> 2];
+        quad[1] = b64tab[((o0 & 0x03) << 4) | (o1 >> 4)];
+        quad[2] = (i + 1 < n) ? b64tab[((o1 & 0x0f) << 2) | (o2 >> 6)] : '=';
+        quad[3] = (i + 2 < n) ? b64tab[o2 & 0x3f] : '=';
+        if (gb_append(b, quad, 4) < 0)
+            return -1;
+        col += 4;
+        if (col >= 76) {
+            if (gb_append(b, "\r\n", 2) < 0)
+                return -1;
+            col = 0;
+        }
+    }
+    if (col != 0) {
+        if (gb_append(b, "\r\n", 2) < 0)
+            return -1;
+    }
+    return 0;
+}
+
+/* Extract the boundary= value from a multipart Content-Type. */
+static int extract_boundary(const char *ctype, char *dst, size_t dstsz)
+{
+    const char *p = ctype;
+    const char *b = NULL;
+    size_t i;
+    for (; *p; p++) {
+        if ((p[0] == 'b' || p[0] == 'B') && strncasecmp(p, "boundary", 8) == 0) {
+            const char *q = p + 8;
+            while (*q == ' ' || *q == '\t')
+                q++;
+            if (*q == '=') {
+                b = q + 1;
+                break;
+            }
+        }
+    }
+    if (!b)
+        return -1;
+    while (*b == ' ' || *b == '\t')
+        b++;
+    char quote = 0;
+    if (*b == '"' || *b == '\'') {
+        quote = *b;
+        b++;
+    }
+    i = 0;
+    while (*b && i < dstsz - 1) {
+        if (quote) {
+            if (*b == quote)
+                break;
+        } else if (*b == ';' || *b == ' ' || *b == '\t' || *b == '\r' || *b == '\n') {
+            break;
+        }
+        dst[i++] = *b++;
+    }
+    dst[i] = '\0';
+    return (i > 0) ? 0 : -1;
+}
+
+/* Read the whole content of fd into a freshly malloc'd buffer. */
+static int read_fd_all(int fd, char **out, size_t *outlen)
+{
+    off_t cur = lseek(fd, 0, SEEK_END);
+    if (cur < 0)
+        return -1;
+    if (lseek(fd, 0, SEEK_SET) < 0)
+        return -1;
+    size_t sz = (size_t) cur;
+    char *buf = malloc(sz ? sz : 1);
+    if (!buf)
+        return -1;
+    size_t got = 0;
+    while (got < sz) {
+        ssize_t r = read(fd, buf + got, sz - got);
+        if (r < 0) {
+            if (errno == EINTR)
+                continue;
+            free(buf);
+            return -1;
+        }
+        if (r == 0)
+            break;
+        got += (size_t) r;
+    }
+    *out = buf;
+    *outlen = got;
+    return 0;
+}
+
+/*
+ * Rebuild a raw multipart/form-data body (read from fd) into a synthetic MIME
+ * e-mail whose part bodies are base64-encoded.  On success sets *out to a
+ * malloc'd buffer of *outlen bytes and returns 0.  On any problem returns -1
+ * and leaves *out untouched so the caller can fall back to the raw body.
+ */
+static int build_mime_email(int fd, const char *content_type, char **out, size_t *outlen)
+{
+    char boundary[256];
+    char delim[260];
+    char *body = NULL;
+    size_t blen = 0;
+    growbuf_t gb = {NULL, 0, 0};
+
+    if (extract_boundary(content_type, boundary, sizeof(boundary)) != 0) {
+        debugs(1, "WARNING multipart: no boundary in Content-Type, raw fallback.\n");
+        return -1;
+    }
+    if (read_fd_all(fd, &body, &blen) != 0 || blen == 0) {
+        free(body);
+        return -1;
+    }
+
+    snprintf(delim, sizeof(delim), "--%s", boundary);
+    size_t dl = strlen(delim);
+
+    /* Synthetic e-mail envelope. */
+    if (gb_puts(&gb, "To: ClamAV\r\nFrom: SquidClamav\r\nSubject: scan\r\nMIME-Version: 1.0\r\nContent-Type: ") < 0) goto fail;
+    if (gb_puts(&gb, content_type) < 0) goto fail;
+    if (gb_puts(&gb, "\r\n\r\n") < 0) goto fail;
+
+    const char *p = mem_find(body, blen, delim, dl);
+    if (!p)
+        goto fail;
+
+    while (p) {
+        const char *after = p + dl;
+        size_t remain = (size_t)((body + blen) - after);
+
+        /* Closing boundary "--boundary--" ends the message. */
+        if (remain >= 2 && after[0] == '-' && after[1] == '-') {
+            if (gb_puts(&gb, delim) < 0) goto fail;
+            if (gb_puts(&gb, "--\r\n") < 0) goto fail;
+            break;
+        }
+        /* Skip the CRLF (or bare LF) terminating the boundary line. */
+        if (remain >= 2 && after[0] == '\r' && after[1] == '\n')
+            after += 2;
+        else if (remain >= 1 && after[0] == '\n')
+            after += 1;
+        else
+            goto fail;
+
+        size_t left = (size_t)((body + blen) - after);
+
+        /* The part ends at the next CRLF (or LF) immediately followed by the
+         * delimiter; that leading CRLF belongs to the boundary, not the data. */
+        const char *part_end = NULL;
+        const char *next_delim = NULL;
+        const char *cand;
+        char sep[262];
+        sep[0] = '\r';
+        sep[1] = '\n';
+        memcpy(sep + 2, delim, dl);
+        cand = mem_find(after, left, sep, dl + 2);
+        if (cand) {
+            part_end = cand;
+            next_delim = cand + 2;
+        } else {
+            sep[0] = '\n';
+            memcpy(sep + 1, delim, dl);
+            cand = mem_find(after, left, sep, dl + 1);
+            if (cand) {
+                part_end = cand;
+                next_delim = cand + 1;
+            } else {
+                goto fail; /* no terminating boundary: malformed */
+            }
+        }
+
+        /* Split the part into its header block and its body. */
+        size_t plen = (size_t)(part_end - after);
+        const char *hdr_end = mem_find(after, plen, "\r\n\r\n", 4);
+        size_t hdr_len, body_off;
+        if (hdr_end) {
+            hdr_len = (size_t)(hdr_end - after);
+            body_off = hdr_len + 4;
+        } else {
+            hdr_end = mem_find(after, plen, "\n\n", 2);
+            if (hdr_end) {
+                hdr_len = (size_t)(hdr_end - after);
+                body_off = hdr_len + 2;
+            } else {
+                hdr_len = 0;
+                body_off = 0;
+            }
+        }
+        const char *part_hdrs = after;
+        const char *part_body = after + body_off;
+        size_t part_body_len = plen - body_off;
+
+        /* If the part already declares a line-safe encoding (base64 or
+         * quoted-printable) leave it untouched; otherwise re-encode. */
+        int already_safe = 0;
+        if (hdr_len) {
+            const char *h = part_hdrs;
+            size_t hl = hdr_len;
+            while (hl > 0) {
+                const char *eol = mem_find(h, hl, "\n", 1);
+                size_t cmplen = eol ? (size_t)(eol - h) : hl;
+                if (cmplen >= 25 && strncasecmp(h, "Content-Transfer-Encoding", 25) == 0) {
+                    const char *v = h + 25;
+                    size_t vl = cmplen - 25;
+                    while (vl && (*v == ' ' || *v == '\t' || *v == ':')) {
+                        v++;
+                        vl--;
+                    }
+                    if ((vl >= 6 && strncasecmp(v, "base64", 6) == 0) ||
+                        (vl >= 16 && strncasecmp(v, "quoted-printable", 16) == 0))
+                        already_safe = 1;
+                }
+                if (!eol)
+                    break;
+                h = eol + 1;
+                hl = (size_t)((part_hdrs + hdr_len) - h);
+            }
+        }
+
+        if (gb_puts(&gb, delim) < 0) goto fail;
+        if (gb_puts(&gb, "\r\n") < 0) goto fail;
+
+        if (already_safe) {
+            /* Pass the part through verbatim: it is already line-safe. */
+            if (gb_append(&gb, part_hdrs, hdr_len) < 0) goto fail;
+            if (gb_puts(&gb, "\r\n\r\n") < 0) goto fail;
+            if (gb_append(&gb, part_body, part_body_len) < 0) goto fail;
+            if (gb_puts(&gb, "\r\n") < 0) goto fail;
+        } else {
+            /* Re-emit the original headers minus any Content-Transfer-Encoding,
+             * force base64, then base64-encode the raw body. */
+            if (hdr_len) {
+                const char *h = part_hdrs;
+                size_t hl = hdr_len;
+                while (hl > 0) {
+                    const char *eol = mem_find(h, hl, "\n", 1);
+                    size_t linelen = eol ? (size_t)(eol - h + 1) : hl;
+                    size_t cmplen = eol ? (size_t)(eol - h) : hl;
+                    if (!(cmplen >= 25 && strncasecmp(h, "Content-Transfer-Encoding", 25) == 0)) {
+                        if (gb_append(&gb, h, linelen) < 0) goto fail;
+                    }
+                    if (!eol)
+                        break;
+                    h += linelen;
+                    hl = (size_t)((part_hdrs + hdr_len) - h);
+                }
+                /* Make sure the header block is CRLF-terminated. */
+                if (gb.len >= 2 && !(gb.data[gb.len - 2] == '\r' && gb.data[gb.len - 1] == '\n')) {
+                    if (gb_puts(&gb, "\r\n") < 0) goto fail;
+                }
+            }
+            if (gb_puts(&gb, "Content-Transfer-Encoding: base64\r\n\r\n") < 0) goto fail;
+            if (gb_append_base64(&gb, (const unsigned char *) part_body, part_body_len) < 0) goto fail;
+        }
+
+        p = next_delim;
+    }
+
+    free(body);
+    *out = gb.data;
+    *outlen = gb.len;
+    return 0;
+
+fail:
+    free(body);
+    free(gb.data);
+    return -1;
+}
+
+/* ----------------------------------------------------- */
+
 int squidclamav_end_of_data_handler(ci_request_t * req)
 {
     av_req_data_t *data = ci_service_data(req);
@@ -659,6 +1012,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     int nbread = 0;
     int sockd;
     unsigned long total_read;
+
+    /* Binary-safe multipart re-encoding (issue #58). */
+    char *mime_buf = NULL;
+    size_t mime_len = 0;
+    size_t mime_off = 0;
+    int use_mime = 0;
 
 #ifdef HAVE_LIBARCHIVE
     int content_length = 0;
@@ -811,21 +1170,18 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
 	while(*content_type == ' ' || *content_type == '\t') content_type++;
 	debugs(2, "DEBUG Content-Type: %s\n", content_type);
         if (strncmp(content_type, "multipart/", 10) == 0) {
-            int len = strlen(content_type);
             debugs(2, "DEBUG Found multipart Content-Type: %s\n", content_type);
-            if (len > (LBUFSIZ - sizeof(uint32_t) - 30)) {
-                debugs(0, "ERROR Can't write multipart header to clamd socket: header too big.\n");
+            /*
+             * Rebuild the multipart payload as a base64-encoded MIME e-mail so
+             * that libclamav can decode and scan binary parts without its
+             * line-based mbox reader stripping NUL bytes from them (issue #58).
+             * On failure we fall back to streaming the raw body as before.
+             */
+            if (build_mime_email(body->fd, content_type, &mime_buf, &mime_len) == 0 && mime_buf != NULL) {
+                use_mime = 1;
+                debugs(2, "DEBUG multipart re-encoded as base64 MIME (%lu bytes) for binary-safe scan.\n", (unsigned long) mime_len);
             } else {
-                uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
-                int header_size = len + 30;
-                buf[0] = htonl(header_size);
-                memset(cbuff, 0, sizeof(cbuff));
-		snprintf(cbuff, header_size, "To: ClamAV\r\nContent-Type: %s\r\n\r\n", content_type);
-		memcpy(&buf[1],(const char*) cbuff, header_size);
-                ret = sendln (sockd,(const char *) buf, header_size + sizeof(uint32_t));
-                if ( ret <= 0 ) {
-                    debugs(0, "ERROR Can't write multipart headers to clamd socket.\n");
-                }
+                debugs(1, "WARNING multipart re-encoding failed, streaming raw body.\n");
             }
         }
     }
@@ -833,10 +1189,25 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     /*-----------------------------------------------------*/
 
     debugs(2, "DEBUG Scanning data now\n");
-    lseek(body->fd, 0, SEEK_SET);
+    if (!use_mime)
+        lseek(body->fd, 0, SEEK_SET);
     memset(cbuff, 0, sizeof(cbuff));
     total_read = 0;
-    while (data->virus == 0 && (nbread = read(body->fd, cbuff, BUFSIZ)) > 0) {
+    while (data->virus == 0) {
+        if (use_mime) {
+            size_t chunk = mime_len - mime_off;
+            if (chunk == 0)
+                break;
+            if (chunk > BUFSIZ)
+                chunk = BUFSIZ;
+            memcpy(cbuff, mime_buf + mime_off, chunk);
+            mime_off += chunk;
+            nbread = (int) chunk;
+        } else {
+            nbread = read(body->fd, cbuff, BUFSIZ);
+            if (nbread <= 0)
+                break;
+        }
         uint32_t buf[LBUFSIZ/sizeof(uint32_t)];
         buf[0] = htonl(nbread);
         memcpy(&buf[1],(const char*) cbuff, nbread);
@@ -902,6 +1273,12 @@ int squidclamav_end_of_data_handler(ci_request_t * req)
     if (sockd > -1) {
         debugs(2, "DEBUG Closing Clamd connection.\n");
         close(sockd);
+    }
+
+    /* Free the rebuilt multipart buffer if one was used (issue #58). */
+    if (mime_buf != NULL) {
+        free(mime_buf);
+        mime_buf = NULL;
     }
 
     if (data->virus) {
