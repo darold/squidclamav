@@ -74,6 +74,20 @@ jobs:
           sudo systemctl stop clamav-freshclam.service 2>/dev/null || true
           sudo systemctl stop clamav-daemon.service 2>/dev/null || true
           sudo systemctl disable clamav-freshclam.service 2>/dev/null || true
+          # clamav-daemon and c-icap ship AppArmor profiles that confine those
+          # binaries to a fixed set of system directories (/var/lib/clamav,
+          # /var/log/clamav, /run/clamav, ...). Our offline DB, logs and sockets
+          # live under the workspace, which the profiles do not allow -- that is
+          # what causes "Failed to open log file ...: Permission denied". Unload
+          # the relevant profiles for this run.
+          if command -v apparmor_parser >/dev/null 2>&1; then
+            sudo mkdir -p /etc/apparmor.d/disable
+            for prof in usr.sbin.clamd usr.bin.freshclam usr.bin.c-icap; do
+              [ -f "/etc/apparmor.d/$prof" ] || continue
+              sudo ln -sf "/etc/apparmor.d/$prof" /etc/apparmor.d/disable/ 2>/dev/null || true
+              sudo apparmor_parser -R "/etc/apparmor.d/$prof" 2>/dev/null || true
+            done
+          fi
 
       - name: Build and install SquidClamav
         run: |
@@ -230,8 +244,6 @@ jobs:
           echo "::endgroup::"
 
           : > "$LOG"
-
-          chmod 644 "$WORK/clamd.conf"
 
           # run_case <desc> <virus|clean> <mode:req|resp> <url> <payload> <http-ctype-header>
           run_case() {
