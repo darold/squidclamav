@@ -2144,7 +2144,7 @@ int dconnect()
     return 0;
 }
 
-void connect_timeout(int sig)
+void connect_timeout(void)
 {
     // doesn't actually need to do anything
 }
@@ -2162,7 +2162,7 @@ int connectINET(char *serverHost, uint16_t serverPort)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags |= AI_CANONNAME;
 
-    action.sa_handler = connect_timeout(0);
+    action.sa_handler = connect_timeout;
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_RESTART;
 
