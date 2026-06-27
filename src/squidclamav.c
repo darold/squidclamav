@@ -1300,7 +1300,7 @@ int load_patterns()
         return 0;
     }
 
-    buf = (char *)malloc(sizeof(char)*LOW_BUFF*2);
+    buf = (char *)malloc(sizeof(char)*MEDIUM_BUFF);
     if (buf == NULL) {
         debugs(0, "FATAL unable to allocate memory in load_patterns()\n");
         fclose(fp);
@@ -1387,11 +1387,11 @@ int add_pattern(char *s, int level)
     char *end = NULL;
 
     /* skip empty and commented lines */
-    if ( (xstrnlen(s, LOW_BUFF) == 0) || (strncmp(s, "#", 1) == 0)) return 1;
+    if ( (xstrnlen(s, MEDIUM_BUFF) == 0) || (strncmp(s, "#", 1) == 0)) return 1;
 
     /* Config file directives are construct as follow: name value */
     type = (char *)malloc(sizeof(char)*LOW_CHAR);
-    first = (char *)malloc(sizeof(char)*LOW_BUFF);
+    first = (char *)malloc(sizeof(char)*MEDIUM_BUFF);
     stored = sscanf(s, "%31s %255s", type, first);
 
     if (stored < 2) {
@@ -1406,14 +1406,14 @@ int add_pattern(char *s, int level)
     debugs(0, "LOG Reading directive %s with value %s\n", type, first);
     /* URl to redirect Squid on virus found */
     if(strcmp(type, "redirect") == 0) {
-        redirect_url = (char *) malloc (sizeof (char) * LOW_BUFF);
+        redirect_url = (char *) malloc (sizeof (char) * MEDIUM_BUFF);
         if(redirect_url == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
             free(type);
             free(first);
             return 0;
         } else {
-            xstrncpy(redirect_url, first, LOW_BUFF);
+            xstrncpy(redirect_url, first, MEDIUM_BUFF);
         }
         free(type);
         free(first);
@@ -1432,7 +1432,7 @@ int add_pattern(char *s, int level)
 
     /* Path for banned file recovery (libarchive support) */
     if(strcmp(type, "recoverpath") == 0) {
-        recover_path = (char *) malloc (sizeof (char) * LOW_BUFF);
+        recover_path = (char *) malloc (sizeof (char) * MEDIUM_BUFF);
         if(recover_path == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
             free(type);
@@ -1440,7 +1440,7 @@ int add_pattern(char *s, int level)
             return 0;
         } else {
             if (isPathExists(first) == 0) {
-                xstrncpy(recover_path, first, LOW_BUFF);
+                xstrncpy(recover_path, first, MEDIUM_BUFF);
             } else {
                 debugs(0, "LOG Wrong path to recoverpath, disabling.\n");
 		free(recover_path);
@@ -1716,7 +1716,7 @@ readFileContent(char *filepath, char *kind)
     char *buf = NULL;
     FILE *fp  = NULL;
     int ret   = 0;
-    char str[LOW_BUFF+LOW_CHAR+1];
+    char str[MEDIUM_BUFF+LOW_CHAR+1];
 
     if (isFileExists(filepath) != 0) {
 	return 0;
@@ -1729,17 +1729,17 @@ readFileContent(char *filepath, char *kind)
         return 0;
     }
 
-    buf = (char *)malloc(sizeof(char)*LOW_BUFF*2);
+    buf = (char *)malloc(sizeof(char)*MEDIUM_BUFF);
     if (buf == NULL) {
         debugs(0, "FATAL unable to allocate memory in readFileContent()\n");
         fclose(fp);
         return 0;
     }
-    while ((fgets(buf, LOW_BUFF, fp) != NULL)) {
+    while ((fgets(buf, MEDIUM_BUFF, fp) != NULL)) {
         /* chop newline */
         chomp(buf);
         /* add to regex patterns array */
-        snprintf(str, LOW_CHAR + LOW_BUFF, "%s %s", kind, buf);
+        snprintf(str, LOW_CHAR + MEDIUM_BUFF, "%s %s", kind, buf);
         if ( (strlen(buf) > 0) && (add_pattern(str, 1) == 0) ) {
             free(buf);
             fclose(fp);
@@ -2148,6 +2148,7 @@ void connect_timeout(int sig)
 {
     // doesn't actually need to do anything
 }
+
 int connectINET(char *serverHost, uint16_t serverPort)
 {
     struct sockaddr_in server;
@@ -2161,7 +2162,7 @@ int connectINET(char *serverHost, uint16_t serverPort)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags |= AI_CANONNAME;
 
-    action.sa_handler = connect_timeout;
+    action.sa_handler = connect_timeout(0);
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_RESTART;
 
