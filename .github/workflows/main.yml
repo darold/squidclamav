@@ -1,16 +1,18 @@
 name: CI
 
-# End-to-end test suite for SquidClamav.
+# End-to-end test suite for SquidClamav, exercised through a real Squid proxy.
 #
-# It builds the c-icap module, stands up a real clamd (with a small, custom,
-# offline signature database -- no freshclam / network needed) and a real
-# c-icap server loading the freshly built squidclamav.so, then drives traffic
-# through the full Squid -> c-icap -> squidclamav -> clamd path with
-# c-icap-client and asserts the scan verdicts.
+# Pipeline under test:   curl  ->  Squid (REQMOD/RESPMOD)  ->  c-icap + squidclamav  ->  clamd
 #
-# The suite intentionally covers the multipart/form-data binary-upload case
-# from issue #58 (a binary payload full of NUL bytes uploaded as
-# multipart/form-data must still be detected).
+# A small offline ClamAV signature database is built at runtime (no freshclam /
+# no network), a tiny origin web server serves and accepts the test payloads,
+# Squid is wired to the freshly built squidclamav.so via ICAP, and curl drives
+# real HTTP traffic through the proxy. Each case asserts the verdict three ways:
+# the HTTP status curl receives, the X-Infection-Found header, and squidclamav's
+# own log line.
+#
+# Coverage includes the issue #58 case: a binary file full of NUL bytes uploaded
+# as multipart/form-data must still be detected.
 
 on:
   push:
@@ -44,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "default",        configure_args: "" }
+          - { name: "default",         configure_args: "" }
           - { name: "with-libarchive", configure_args: "--with-libarchive=/usr/include" }
     name: build-and-test (${{ matrix.name }})
 
@@ -52,11 +54,12 @@ jobs:
       WORK: ${{ github.workspace }}/_citest
       CLAMD_PORT: "3310"
       ICAP_PORT: "1344"
-      BOUNDARY: "----CIBoundary7e3f1a"
+      PROXY_PORT: "3128"
+      ORIGIN_PORT: "8080"
 
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Install build and runtime dependencies
         run: |
@@ -65,24 +68,23 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential autoconf automake libtool pkg-config \
             libicapapi-dev libssl-dev \
-            c-icap clamav clamav-daemon python3
+            c-icap clamav clamav-daemon squid curl python3
           if [ -n "${{ matrix.configure_args }}" ]; then
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libarchive-dev
           fi
-          # We supply our own offline signature DB; make sure freshclam never
-          # interferes with the test run.
+          # We supply our own offline signature DB; keep freshclam/clamd services
+          # from interfering with the manually started daemons.
           sudo systemctl stop clamav-freshclam.service 2>/dev/null || true
           sudo systemctl stop clamav-daemon.service 2>/dev/null || true
+          sudo systemctl stop squid.service 2>/dev/null || true
           sudo systemctl disable clamav-freshclam.service 2>/dev/null || true
-          # clamav-daemon and c-icap ship AppArmor profiles that confine those
-          # binaries to a fixed set of system directories (/var/lib/clamav,
-          # /var/log/clamav, /run/clamav, ...). Our offline DB, logs and sockets
-          # live under the workspace, which the profiles do not allow -- that is
-          # what causes "Failed to open log file ...: Permission denied". Unload
-          # the relevant profiles for this run.
+          # clamd, c-icap and squid ship AppArmor profiles confining them to a
+          # fixed set of system directories. Our DB, logs and sockets live under
+          # the workspace, so unload those profiles for this run (otherwise the
+          # daemons get "Permission denied" on their workspace paths).
           if command -v apparmor_parser >/dev/null 2>&1; then
             sudo mkdir -p /etc/apparmor.d/disable
-            for prof in usr.sbin.clamd usr.bin.freshclam usr.bin.c-icap; do
+            for prof in usr.sbin.clamd usr.bin.freshclam usr.bin.c-icap usr.sbin.squid; do
               [ -f "/etc/apparmor.d/$prof" ] || continue
               sudo ln -sf "/etc/apparmor.d/$prof" /etc/apparmor.d/disable/ 2>/dev/null || true
               sudo apparmor_parser -R "/etc/apparmor.d/$prof" 2>/dev/null || true
@@ -96,7 +98,6 @@ jobs:
           ./configure ${{ matrix.configure_args }}
           make -j"$(nproc)"
           sudo make install
-          # Sanity: the module and templates must be where c-icap expects them.
           MODDIR="$(c-icap-config --modulesdir)"
           test -f "${MODDIR%/}/squidclamav.so"
           test -f "$(c-icap-config --datarootdir)/templates/squidclamav/en/MALWARE_FOUND"
@@ -104,19 +105,19 @@ jobs:
       - name: Generate offline ClamAV signatures and test payloads
         run: |
           set -euxo pipefail
-          mkdir -p "$WORK/db" "$WORK/payloads" "$WORK/tmp"
-          python3 - "$WORK" "$BOUNDARY" << 'PY'
+          mkdir -p "$WORK/db" "$WORK/payloads" "$WORK/tmp" "$WORK/squid"
+          python3 - "$WORK" << 'PY'
           import binascii, os, sys
-          work, boundary = sys.argv[1], sys.argv[2]
+          work = sys.argv[1]
           db = os.path.join(work, "db"); pl = os.path.join(work, "payloads")
 
-          # --- payloads -------------------------------------------------------
           # EICAR standard anti-virus test string (generated here, never committed).
           eicar = (r'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-'
                    r'STANDARD-ANTIVIRUS-TEST-FILE!$H+H*').encode()
-          # A "binary" payload deliberately full of NUL bytes -- this is the
-          # exact shape that issue #58 is about: NUL bytes get stripped when a
-          # part is mishandled as a line-based e-mail body.
+          # Binary payload deliberately full of NUL bytes -- this is the exact
+          # shape issue #58 is about (NUL bytes stripped when a part is treated
+          # as a line-based e-mail body). Served/uploaded as octet-stream so
+          # clamd scans the raw bytes (no text normalisation).
           binnul = (b"MZ\x00\x00\x90\x00" + b"SQUIDCLAMAV" + b"\x00" +
                     b"CI_BINARY_VIRUS_PAYLOAD" + b"\x00\x00" + b"END")
           clean  = b"this is a perfectly clean file, nothing to see here\n"
@@ -125,39 +126,25 @@ jobs:
           open(os.path.join(pl, "binnul.bin"), "wb").write(binnul)
           open(os.path.join(pl, "clean.txt"),  "wb").write(clean)
 
-          # --- custom signatures (.ndb: Name:Target:Offset:HexSignature) ------
-          # We send all positive payloads as application/octet-stream so clamd
-          # scans the raw decoded bytes (no text normalisation), which keeps
-          # detection deterministic. The binary signature embeds a NUL byte, so
-          # any NUL-stripping regression makes it stop matching.
+          # Custom signatures (.ndb: Name:Target:Offset:HexSignature). The binary
+          # signature embeds a NUL byte, so any NUL-stripping regression makes it
+          # stop matching.
           binslice = b"SQUIDCLAMAV" + b"\x00" + b"CI_BINARY_VIRUS_PAYLOAD"
           with open(os.path.join(db, "squidclamav-ci.ndb"), "w") as f:
               f.write("SquidClamav.Test.EICAR:0:*:%s\n"  % binascii.hexlify(eicar).decode())
               f.write("SquidClamav.Test.Binary:0:*:%s\n" % binascii.hexlify(binslice).decode())
-
-          # --- build multipart/form-data bodies -------------------------------
-          def multipart(filename, ctype, content):
-              b = boundary.encode()
-              return (b"--" + b + b"\r\n" +
-                      b'Content-Disposition: form-data; name="file"; filename="'
-                      + filename.encode() + b'"\r\n' +
-                      b"Content-Type: " + ctype.encode() + b"\r\n\r\n" +
-                      content + b"\r\n--" + b + b"--\r\n")
-
-          open(os.path.join(pl, "mp_eicar.bin"),  "wb").write(multipart("eicar.com",  "application/octet-stream", eicar))
-          open(os.path.join(pl, "mp_binnul.bin"), "wb").write(multipart("test.exe",   "application/octet-stream", binnul))
-          open(os.path.join(pl, "mp_clean.bin"),  "wb").write(multipart("clean.txt",  "text/plain",               clean))
           print("fixtures generated; NUL bytes in binnul:", binnul.count(0))
           PY
-          echo "Signature DB:"; cat "$WORK/db/squidclamav-ci.ndb"
+          cat "$WORK/db/squidclamav-ci.ndb"
 
-      - name: Write clamd, c-icap and squidclamav configuration
+      - name: Write daemon configuration and origin server
         run: |
           set -euxo pipefail
           MODDIR="$(c-icap-config --modulesdir)"
           TPLDIR="$(c-icap-config --datarootdir)/templates"
           ME_U="$(id -un)"; ME_G="$(id -gn)"
 
+          # ---- clamd (runner user, no privilege drop) ----
           cat > "$WORK/clamd.conf" << EOF
           LogFile $WORK/clamd.log
           LogTime yes
@@ -165,7 +152,6 @@ jobs:
           TCPSocket $CLAMD_PORT
           TCPAddr 127.0.0.1
           Foreground no
-          MaxThreads 4
           StreamMaxLength 50M
           MaxScanSize 100M
           MaxFileSize 50M
@@ -173,11 +159,11 @@ jobs:
           ScanArchive yes
           EOF
 
+          # ---- c-icap (started as root, drops workers to the runner user) ----
           cat > "$WORK/c-icap.conf" << EOF
           PidFile $WORK/c-icap.pid
           CommandsSocket $WORK/c-icap.ctl
           Timeout 300
-          MaxKeepAliveRequests 100
           StartServers 1
           MaxServers 5
           MinSpareThreads 1
@@ -199,10 +185,10 @@ jobs:
           Service squidclamav squidclamav.so
           EOF
 
-          # squidclamav reads its config from <c-icap configdir>/squidclamav.conf
+          # ---- squidclamav (block via 307 redirect to the origin warning page) ----
           sudo tee "$(c-icap-config --configdir)/squidclamav.conf" > /dev/null << EOF
           maxsize 50M
-          redirect http://localhost/cgi-bin/clwarn.cgi
+          redirect http://127.0.0.1:$ORIGIN_PORT/blocked
           clamd_ip 127.0.0.1
           clamd_port $CLAMD_PORT
           timeout 5
@@ -211,68 +197,75 @@ jobs:
           safebrowsing 0
           multipart 1
           scan_mode ScanAllExcept
-          # Do not scan images
-          abort ^.*\.(jpe?[g|e|2]|JPG|gif|png|ico|svg|web[p|m]|bmp)
-          # Do not scan text files
-          abort ^.*\.(css|js|.*html?|xml|php[0-9]?|asp|rss|atom|vr(t|ml)|m3u8)
-          # Do not scan fonts
-          abort ^.*\.(ttf|eot|woff)
-          # Do not scan (streamed) videos and audios
-          abort ^.*\.(mp[3|4]|m4s|ts|flv|f4f|wm[v|a])
-          # Do not scan flash files
-          abort ^.*\.swf
-          # Do not scan cache digest
-          abort ^.*\/store_digest$
-          abortcontent ^application\/cache-digest
-          # Do not scan images
-          abortcontent ^image\/.*
-          # Do not scan text files
-          abortcontent ^application\/atom+xml
-          abortcontent ^application\/dash+xml
-          abortcontent ^application\/javascript
-          abortcontent ^application\/json
-          abortcontent ^application\/x-latex
-          abortcontent ^application\/ld+json
-          abortcontent ^application\/manifest+json
-          abortcontent ^application\/opensearchdescription+xml
-          abortcontent ^application\/rdf+xml
-          abortcontent ^application\/rss+xml
-          abortcontent ^application\/schema+json
-          abortioncontent ^application\/vnd.apple.installer+xml
-          abortcontent ^application\/vnd.apple.mpegurl
-          abortcontent ^application\/vnd.geo+json
-          abortcontent ^application\/x-apple-plist
-          abortcontent ^application\/x-javascript
-          abortcontent ^application\/x-mpegurl
-          abortcontent ^application\/x-ns-proxy-autoconfig
-          abortcontent ^application\/x-protobuffer
-          abortcontent ^application\/x-web-app-manifest+json
-          abortcontent ^application\/x-www-form-urlencoded
-          abortcontent ^application\/xhtml+xml
-          abortcontent ^application\/xml
-          abortcontent ^application\/x-yaml
-          abortioncontent ^application\/x-cdf
-          abortcontent ^application\/x-sdch-dictionary
-          abortcontent ^application\/x-steam-manifest
-          # Do not scan fonts
-          abortcontent ^application\/font.*
-          abortcontent ^application\/x-font.*
-          abortcontent ^application\/vnd.ms-fontobject
-          # Do not scan (streamed) videos and audios
-          abortcontent ^video\/.*
-          abortcontent ^audio\/.*
-          # Do not scan flash files
-          abortcontent ^application\/x-shockwave-flash
-          # Do not scan sequence of framed Microsoft Media Server (MMS) data packets
-          abortcontent ^.*application\/x-mms-framed.*
           EOF
 
-      - name: Run end-to-end scan test suite
+          # ---- Squid (started as root, drops to the runner user; ICAP -> c-icap) ----
+          cat > "$WORK/squid.conf" << EOF
+          http_port $PROXY_PORT
+          acl SSL_ports port 443
+          acl Safe_ports port 80 21 443 70 210 1025-65535 280 488 591 777
+          acl CONNECT method CONNECT
+          http_access deny !Safe_ports
+          http_access deny CONNECT !SSL_ports
+          http_access allow localhost
+          acl localnet src 127.0.0.1/32
+          http_access allow localnet
+          http_access deny all
+          cache deny all
+          access_log $WORK/squid/access.log
+          cache_log $WORK/squid/cache.log
+          pid_filename $WORK/squid/squid.pid
+          coredump_dir $WORK/squid
+          cache_effective_user $ME_U
+          cache_effective_group $ME_G
+          icap_enable on
+          icap_preview_enable on
+          icap_preview_size 1024
+          icap_service service_req reqmod_precache icap://127.0.0.1:$ICAP_PORT/squidclamav bypass=off
+          icap_service service_resp respmod_precache icap://127.0.0.1:$ICAP_PORT/squidclamav bypass=off
+          adaptation_access service_req allow all
+          adaptation_access service_resp allow all
+          EOF
+
+          # ---- origin web server: serves payloads (GET) and accepts uploads (POST) ----
+          cat > "$WORK/origin_server.py" << PY
+          import http.server, socketserver, os
+          PL = os.path.join(os.environ["WORK"], "payloads")
+          FILES = {
+            "/dl/eicar":  (open(PL + "/eicar.com",  "rb").read(), "application/octet-stream"),
+            "/dl/binnul": (open(PL + "/binnul.bin", "rb").read(), "application/octet-stream"),
+            "/dl/clean":  (open(PL + "/clean.txt",  "rb").read(), "text/plain"),
+          }
+          class H(http.server.BaseHTTPRequestHandler):
+              def log_message(self, *a): pass
+              def _send(self, body, ctype, code=200):
+                  self.send_response(code)
+                  self.send_header("Content-Type", ctype)
+                  self.send_header("Content-Length", str(len(body)))
+                  self.end_headers(); self.wfile.write(body)
+              def do_GET(self):
+                  if self.path in FILES:
+                      b, ct = FILES[self.path]; self._send(b, ct)
+                  elif self.path.startswith("/blocked"):
+                      self._send(b"BLOCKED_BY_SQUIDCLAMAV\n", "text/html")
+                  else:
+                      self.send_error(404)
+              def do_POST(self):
+                  n = int(self.headers.get("Content-Length", "0") or 0)
+                  if n: self.rfile.read(n)
+                  self._send(b"UPLOAD_OK\n", "text/plain")
+          class S(socketserver.ThreadingMixIn, http.server.HTTPServer):
+              allow_reuse_address = True
+          S(("127.0.0.1", int(os.environ["ORIGIN_PORT"])), H).serve_forever()
+          PY
+
+      - name: Run end-to-end scan test suite through Squid
         run: |
           set -uo pipefail
           fail=0
           LOG="$WORK/c-icap-server.log"
-          CT="Content-Type: multipart/form-data; boundary=$BOUNDARY"
+          PROXY="http://127.0.0.1:$PROXY_PORT"
+          touch "$WORK/c-icap-server.log" "$WORK/c-icap-access.log"
 
           wait_port() { # host port name
             for _ in $(seq 1 40); do
@@ -284,76 +277,79 @@ jobs:
             echo "  ERROR: $3 not listening on $1:$2"; return 1
           }
 
-          echo "::group::Start clamd"
+          echo "::group::Start daemons"
+          # origin web server (runner)
+          ( exec python3 "$WORK/origin_server.py" ) </dev/null > "$WORK/origin.log" 2>&1 &
+          wait_port 127.0.0.1 "$ORIGIN_PORT" origin || exit 1
+          # clamd (runner, self-daemonises)
           clamd -c "$WORK/clamd.conf"
-          wait_port 127.0.0.1 "$CLAMD_PORT" clamd || { tail -n 40 "$WORK/clamd.log" || true; exit 1; }
-          echo "::endgroup::"
-
-          echo "::group::Start c-icap"
-          touch "$WORK/c-icap-server.log" "$WORK/c-icap-access.log" "$WORK/c-icap.stdout"
-          # Foreground (-N) + background within this step so it lives for the
-          # whole test; -D sends debug to stdout as well as the ServerLog.
-          sudo c-icap -N -D -d 2 -f "$WORK/c-icap.conf" > "$WORK/c-icap.stdout" 2>&1 &
-          CICAP_PID=$!
+          wait_port 127.0.0.1 "$CLAMD_PORT" clamd || { tail -n 30 "$WORK/clamd.log" || true; exit 1; }
+          # c-icap (root master -> drops workers to the runner user)
+          sudo c-icap -N -D -d 2 -f "$WORK/c-icap.conf" </dev/null > "$WORK/c-icap.stdout" 2>&1 &
           wait_port 127.0.0.1 "$ICAP_PORT" c-icap || { cat "$WORK/c-icap.stdout" || true; exit 1; }
+          # squid (root master -> drops to the runner user; must not run as root)
+          sudo rm -f /dev/shm/squid* 2>/dev/null || true
+          sudo squid -N -d1 -f "$WORK/squid.conf" </dev/null > "$WORK/squid.stdout" 2>&1 &
+          wait_port 127.0.0.1 "$PROXY_PORT" squid || { sed 's/\r//' "$WORK/squid.stdout" | tail -n 30 || true; exit 1; }
+          sleep 3   # allow Squid to finish ICAP OPTIONS negotiation
           echo "::endgroup::"
 
           : > "$LOG"
 
-          # run_case <desc> <virus|clean> <mode:req|resp> <url> <payload> <http-ctype-header>
+          # run_case <desc> <blocked|clean> <url> [extra curl args...]
           run_case() {
-            local desc="$1" expect="$2" mode="$3" url="$4" file="$5" ctype="$6"
-            local args=( -i 127.0.0.1 -p "$ICAP_PORT" -s squidclamav -f "$file" -v )
-            if [ "$mode" = "req" ]; then
-              args+=( -req "$url" -method POST -hx "$ctype" )
+            local desc="$1" expect="$2" url="$3"; shift 3
+            local code
+            code=$(curl --connect-timeout 5 --max-time 20 -s -o /dev/null \
+                        -D "$WORK/resp_hdr" -w '%{http_code}' -x "$PROXY" "$@" "$url" 2>/dev/null)
+            sync; sleep 0.3
+            local virus=no infect=no
+            grep -qF "Virus found in $url" "$LOG" && virus=yes
+            grep -qi '^X-Infection-Found:' "$WORK/resp_hdr" && infect=yes
+            local ok=1
+            if [ "$expect" = blocked ]; then
+              { [ "$code" = 307 ] || [ "$code" = 403 ]; } && [ "$virus" = yes ] && [ "$infect" = yes ] || ok=0
             else
-              args+=( -resp "$url" -rhx "$ctype" )
+              [ "$code" = 200 ] && [ "$virus" = no ] && [ "$infect" = no ] || ok=0
             fi
-            timeout 30 c-icap-client "${args[@]}" > "$WORK/tmp/client.out" 2>&1
-            sync; sleep 0.4
-            local got="clean"
-            grep -qF "Virus found in $url" "$LOG" && got="virus"
-            if [ "$got" = "$expect" ]; then
-              printf '  PASS  %-40s expect=%-5s got=%-5s\n' "$desc" "$expect" "$got"
+            if [ "$ok" = 1 ]; then
+              printf '  PASS  %-34s code=%-3s virus=%-3s infection_hdr=%s\n' "$desc" "$code" "$virus" "$infect"
             else
-              printf '  FAIL  %-40s expect=%-5s got=%-5s\n' "$desc" "$expect" "$got"
+              printf '  FAIL  %-34s code=%-3s virus=%-3s infection_hdr=%s (expected %s)\n' "$desc" "$code" "$virus" "$infect" "$expect"
               fail=1
-              echo "        ---- c-icap-client output ----"
-              sed 's/^/        /' "$WORK/tmp/client.out" | head -n 12
             fi
           }
 
-          echo "=== SquidClamav scan test suite ==="
-          # Negative controls
-          run_case "clean upload (raw body)"        clean req  http://ci.test/clean-raw      "$WORK/payloads/clean.txt"   "Content-Type: text/plain"
-          run_case "clean upload (multipart)"       clean req  http://ci.test/clean-mp       "$WORK/payloads/mp_clean.bin" "$CT"
-          # Positive controls (raw body == the `--data-binary` path)
-          run_case "EICAR upload (raw body)"        virus req  http://ci.test/eicar-raw      "$WORK/payloads/eicar.com"   "Content-Type: application/octet-stream"
-          run_case "binary virus (raw body)"        virus req  http://ci.test/binnul-raw     "$WORK/payloads/binnul.bin"  "Content-Type: application/octet-stream"
-          # multipart/form-data uploads (the #46 e-mail-wrapping path)
-          run_case "EICAR upload (multipart)"       virus req  http://ci.test/eicar-mp       "$WORK/payloads/mp_eicar.bin"  "$CT"
-          # *** issue #58 regression guard: binary file with NUL bytes ***
-          run_case "binary virus (multipart) #58"   virus req  http://ci.test/binnul-mp      "$WORK/payloads/mp_binnul.bin" "$CT"
-          # download path (RESPMOD)
-          run_case "EICAR download (respmod)"       virus resp http://ci.test/eicar-download "$WORK/payloads/eicar.com"   "Content-Type: application/octet-stream"
+          O="http://127.0.0.1:$ORIGIN_PORT"
+          echo "=== Downloads (RESPMOD) ==="
+          run_case "clean download"            clean   "$O/dl/clean"
+          run_case "EICAR download"            blocked "$O/dl/eicar"
+          run_case "binary virus download"     blocked "$O/dl/binnul"
+          echo "=== Uploads (REQMOD) ==="
+          run_case "clean upload (multipart)"  clean   "$O/upload/clean"  -F "file=@$WORK/payloads/clean.txt"
+          run_case "EICAR upload (multipart)"  blocked "$O/upload/eicar"  -F "file=@$WORK/payloads/eicar.com"
+          # *** issue #58 regression guard: binary NUL-heavy file via multipart/form-data ***
+          run_case "binary virus upload (mp) #58" blocked "$O/upload/binnul" -F "file=@$WORK/payloads/binnul.bin"
+          run_case "binary virus upload (raw)" blocked "$O/upload/binraw" -H "Content-Type: application/octet-stream" --data-binary "@$WORK/payloads/binnul.bin"
+
+          echo "=== End-user view of a blocked download ==="
+          curl --max-time 20 -s -D - -o /dev/null -x "$PROXY" "$O/dl/eicar" 2>/dev/null \
+            | sed 's/\r//' | grep -iE "^HTTP/|^Location:|^X-Virus-ID:|^X-Infection-Found:" || true
 
           echo "=================================="
-          # stop c-icap (best effort)
-          sudo kill "$CICAP_PID" 2>/dev/null || true
-          sudo pkill -f "c-icap -N" 2>/dev/null || true
+          sudo pkill -f "squid -N"   2>/dev/null || true
+          sudo pkill -f "c-icap -N"  2>/dev/null || true
+          pkill -f origin_server     2>/dev/null || true
 
-          if [ "$fail" -ne 0 ]; then
-            echo "SOME TESTS FAILED"
-            exit 1
-          fi
+          if [ "$fail" -ne 0 ]; then echo "SOME TESTS FAILED"; exit 1; fi
           echo "ALL TESTS PASSED"
 
       - name: Dump logs on failure
         if: failure()
         run: |
-          echo "===== c-icap server log ====="; cat "$WORK/c-icap-server.log" 2>/dev/null || true
-          echo "===== c-icap stdout ====="; cat "$WORK/c-icap.stdout" 2>/dev/null || true
-          echo "===== clamd log ====="; cat "$WORK/clamd.log" 2>/dev/null || true
+          for f in c-icap-server.log c-icap.stdout clamd.log squid.stdout origin.log squid/cache.log; do
+            echo "===== $f ====="; sudo cat "$WORK/$f" 2>/dev/null || true
+          done
 
       - name: Upload logs
         if: always()
@@ -364,5 +360,8 @@ jobs:
             ${{ env.WORK }}/c-icap-server.log
             ${{ env.WORK }}/c-icap.stdout
             ${{ env.WORK }}/clamd.log
+            ${{ env.WORK }}/squid.stdout
+            ${{ env.WORK }}/squid/cache.log
+            ${{ env.WORK }}/origin.log
           if-no-files-found: ignore
           retention-days: 7
