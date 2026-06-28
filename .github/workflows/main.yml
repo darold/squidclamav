@@ -211,6 +211,61 @@ jobs:
           safebrowsing 0
           multipart 1
           scan_mode ScanAllExcept
+          # Do not scan images
+          abort ^.*\.(jpe?[g|e|2]|JPG|gif|png|ico|svg|web[p|m]|bmp)
+          # Do not scan text files
+          abort ^.*\.(css|js|.*html?|xml|php[0-9]?|asp|rss|atom|vr(t|ml)|m3u8)
+          # Do not scan fonts
+          abort ^.*\.(ttf|eot|woff)
+          # Do not scan (streamed) videos and audios
+          abort ^.*\.(mp[3|4]|m4s|ts|flv|f4f|wm[v|a])
+          # Do not scan flash files
+          abort ^.*\.swf
+          # Do not scan cache digest
+          abort ^.*\/store_digest$
+          abortcontent ^application\/cache-digest
+          # Do not scan images
+          abortcontent ^image\/.*
+          # Do not scan text files
+          abortcontent ^application\/atom+xml
+          abortcontent ^application\/dash+xml
+          abortcontent ^application\/javascript
+          abortcontent ^application\/json
+          abortcontent ^application\/x-latex
+          abortcontent ^application\/ld+json
+          abortcontent ^application\/manifest+json
+          abortcontent ^application\/opensearchdescription+xml
+          abortcontent ^application\/rdf+xml
+          abortcontent ^application\/rss+xml
+          abortcontent ^application\/schema+json
+          abortcontent ^application\/txt
+          abortioncontent ^application\/vnd.apple.installer+xml
+          abortcontent ^application\/vnd.apple.mpegurl
+          abortcontent ^application\/vnd.geo+json
+          abortcontent ^application\/x-apple-plist
+          abortcontent ^application\/x-javascript
+          abortcontent ^application\/x-mpegurl
+          abortcontent ^application\/x-ns-proxy-autoconfig
+          abortcontent ^application\/x-protobuffer
+          abortcontent ^application\/x-web-app-manifest+json
+          abortcontent ^application\/x-www-form-urlencoded
+          abortcontent ^application\/xhtml+xml
+          abortcontent ^application\/xml
+          abortcontent ^application\/x-yaml
+          abortioncontent ^application\/x-cdf
+          abortcontent ^application\/x-sdch-dictionary
+          abortcontent ^application\/x-steam-manifest
+          # Do not scan fonts
+          abortcontent ^application\/font.*
+          abortcontent ^application\/x-font.*
+          abortcontent ^application\/vnd.ms-fontobject
+          # Do not scan (streamed) videos and audios
+          abortcontent ^video\/.*
+          abortcontent ^audio\/.*
+          # Do not scan flash files
+          abortcontent ^application\/x-shockwave-flash
+          # Do not scan sequence of framed Microsoft Media Server (MMS) data packets
+          abortcontent ^.*application\/x-mms-framed.*
           EOF
 
       - name: Run end-to-end scan test suite
