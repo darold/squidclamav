@@ -238,7 +238,6 @@ jobs:
           abortcontent ^application\/rdf+xml
           abortcontent ^application\/rss+xml
           abortcontent ^application\/schema+json
-          abortcontent ^application\/txt
           abortioncontent ^application\/vnd.apple.installer+xml
           abortcontent ^application\/vnd.apple.mpegurl
           abortcontent ^application\/vnd.geo+json
