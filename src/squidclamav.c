@@ -231,6 +231,10 @@ int squidclamav_init_service(ci_service_xdata_t * srv_xdata,
 
     /* allocate memory for some global variables */
     clamd_curr_ip = (char *) malloc (sizeof (char) * LOW_BUFF);
+    if (clamd_curr_ip == NULL) {
+        debugs(0, "FATAL unable to allocate clamd_curr_ip\n");
+        return CI_ERROR;
+    }
     memset(clamd_curr_ip, 0, sizeof (char) * LOW_BUFF);
 
     /*********************
@@ -274,6 +278,10 @@ void cfgreload_command(char *name, int type, char **argv)
 
     /* reallocate memory for some global variables removed in free_global() */
     clamd_curr_ip = (char *) malloc (sizeof (char) * LOW_BUFF);
+    if (clamd_curr_ip == NULL) {
+        debugs(0, "FATAL unable to allocate clamd_curr_ip\n");
+        return;
+    }
     memset(clamd_curr_ip, 0, sizeof (char) * LOW_BUFF);
 
     /* read configuration file */
@@ -338,6 +346,10 @@ void squidclamav_release_request_data(void *data)
             ci_buffer_free(((av_req_data_t *) data)->user);
         if (((av_req_data_t *) data)->clientip)
             ci_buffer_free(((av_req_data_t *) data)->clientip);
+        if (((av_req_data_t *) data)->malware)
+            ci_buffer_free(((av_req_data_t *) data)->malware);
+        if (((av_req_data_t *) data)->recover)
+            ci_buffer_free(((av_req_data_t *) data)->recover);
         if (((av_req_data_t *) data)->error_page)
             ci_membuf_free(((av_req_data_t *) data)->error_page);
 
@@ -1333,8 +1345,12 @@ void set_istag(ci_service_xdata_t * srv_xdata)
 /* NUL-terminated version of strncpy() */
 void xstrncpy (char *dest, const char *src, size_t n)
 {
-    if ( (src == NULL) || (strcmp(src, "") == 0))
+    if ( (dest == NULL) || (n == 0) )
         return;
+    if ( (src == NULL) || (strcmp(src, "") == 0)) {
+        dest[0] = 0;
+        return;
+    }
     strncpy(dest, src, n-1);
     dest[n-1] = 0;
 }
@@ -1450,25 +1466,28 @@ char** split( char* str, const char* delim)
 {
     int size = 0;
     char** splitted = NULL;
+    char** _tmp = NULL;
     char *tmp = NULL;
     tmp = strtok(str, delim);
     while (tmp != NULL) {
-        splitted = (char**) realloc(splitted, sizeof(char**) * (size+1));
-        if (splitted != NULL) {
+        _tmp = (char**) realloc(splitted, sizeof(char*) * (size+1));
+        if (_tmp != NULL) {
+            splitted = _tmp;
             splitted[size] = tmp;
         } else {
+            free(splitted);
             return(NULL);
         }
         tmp = strtok(NULL, delim);
         size++;
     }
-    free(tmp);
-    tmp = NULL;
     /* add null at end of array to help ptrarray_length */
-    splitted = (char**) realloc(splitted, sizeof(char**) * (size+1));
-    if (splitted != NULL) {
+    _tmp = (char**) realloc(splitted, sizeof(char*) * (size+1));
+    if (_tmp != NULL) {
+        splitted = _tmp;
         splitted[size] = NULL;
     } else {
+        free(splitted);
         return(NULL);
     }
 
@@ -1509,6 +1528,9 @@ int isIpAddress(char *src_addr)
     int i;
     char *s = (char *) malloc (sizeof (char) * LOW_CHAR);
 
+    if (s == NULL)
+        return 1;
+
     xstrncpy(s, src_addr, LOW_CHAR);
 
     /* make sure we have numbers and dots only! */
@@ -1517,7 +1539,8 @@ int isIpAddress(char *src_addr)
         return 1;
     }
 
-    /* split up each number from string */
+    /* split up each number from string. ptr points inside s (strtok), so it
+       must never be free()'d on its own; only s is heap-allocated. */
     ptr = strtok(s, ".");
     if(ptr == NULL) {
         free(s);
@@ -1526,11 +1549,10 @@ int isIpAddress(char *src_addr)
     address = atoi(ptr);
     if(address < 0 || address > 255) {
         free(s);
-        free(ptr);
         return 1;
     }
 
-    for(i = 2; i < 4; i++) {
+    for(i = 2; i <= 4; i++) {
         ptr = strtok(NULL, ".");
         if (ptr == NULL) {
             free(s);
@@ -1538,7 +1560,6 @@ int isIpAddress(char *src_addr)
         }
         address = atoi(ptr);
         if (address < 0 || address > 255) {
-            free(ptr);
             free(s);
             return 1;
         }
@@ -1783,6 +1804,7 @@ int add_pattern(char *s, int level)
     debugs(0, "LOG Reading directive %s with value %s\n", type, first);
     /* URl to redirect Squid on virus found */
     if(strcmp(type, "redirect") == 0) {
+        free(redirect_url);   /* avoid leaking a previously set value */
         redirect_url = (char *) malloc (sizeof (char) * MEDIUM_BUFF);
         if(redirect_url == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
@@ -1809,6 +1831,7 @@ int add_pattern(char *s, int level)
 
     /* Path for banned file recovery (libarchive support) */
     if(strcmp(type, "recoverpath") == 0) {
+        free(recover_path);   /* avoid leaking a previously set value */
         recover_path = (char *) malloc (sizeof (char) * MEDIUM_BUFF);
         if(recover_path == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
@@ -1821,6 +1844,7 @@ int add_pattern(char *s, int level)
             } else {
                 debugs(0, "LOG Wrong path to recoverpath, disabling.\n");
 		free(recover_path);
+		recover_path = NULL;   /* don't leave a dangling pointer */
             }
         }
         free(type);
@@ -1918,6 +1942,7 @@ int add_pattern(char *s, int level)
     }
 
     if(strcmp(type, "clamd_ip") == 0) {
+        free(clamd_ip);   /* avoid leaking a previously set value */
         clamd_ip = (char *) malloc (sizeof (char) * SMALL_CHAR);
         if (clamd_ip == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
@@ -1933,6 +1958,7 @@ int add_pattern(char *s, int level)
     }
 
     if(strcmp(type, "clamd_port") == 0) {
+        free(clamd_port);   /* avoid leaking a previously set value */
         clamd_port = (char *) malloc (sizeof (char) * LOW_CHAR);
         if(clamd_port == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
@@ -1948,6 +1974,7 @@ int add_pattern(char *s, int level)
     }
 
     if(strcmp(type, "clamd_local") == 0) {
+        free(clamd_local);   /* avoid leaking a previously set value */
         clamd_local = (char *) malloc (sizeof (char) * LOW_BUFF);
         if(clamd_local == NULL) {
             fprintf(stderr, "unable to allocate memory in add_to_patterns()\n");
@@ -2073,9 +2100,14 @@ int add_pattern(char *s, int level)
     strcpy(currItem.pattern, first);
     if ((stored = regcomp(&currItem.regexv, currItem.pattern, currItem.flag)) != 0) {
         debugs(0, "ERROR Invalid regex pattern: %s\n", currItem.pattern);
+        /* regcomp failed: the compiled buffer must not be regfree()'d, but the
+           pattern string copy we allocated above would otherwise leak. */
+        free(currItem.pattern);
     } else {
         if (growPatternArray(currItem) < 0) {
             fprintf(stderr, "unable to allocate new pattern in add_to_patterns()\n");
+            regfree(&currItem.regexv);
+            free(currItem.pattern);
             free(type);
             free(first);
             return 0;
@@ -2176,7 +2208,9 @@ int extract_http_info(ci_request_t * req, ci_headers_list_t * req_header,
     /* we must find the HTTP version after all */
     while (*str == ' ')
         str++;
-    if (*str != 'H' || *(str + 4) != '/') {
+    /* Validate "HTTP/" without reading past the end of the string: check each
+       byte in order so a short tail like "H\0" cannot trigger an over-read. */
+    if (strncmp(str, "HTTP/", 5) != 0) {
         return 0;
     }
 
@@ -2201,13 +2235,19 @@ const char *http_content_type(ci_request_t * req)
 void free_global()
 {
     free(clamd_local);
+    clamd_local = NULL;
     free(clamd_ip);
+    clamd_ip = NULL;
     free(clamd_port);
+    clamd_port = NULL;
     free(clamd_curr_ip);
+    clamd_curr_ip = NULL;
     free(redirect_url);
+    redirect_url = NULL;
 #ifdef HAVE_LIBARCHIVE
     /* libarchive support */
     free(recover_path);
+    recover_path = NULL;
 #endif
     if (patterns != NULL) {
         while (pattc > 0) {
@@ -2244,6 +2284,10 @@ void generate_response_page(ci_request_t *req, av_req_data_t *data)
 
     if (redirect_url != NULL) {
         char *urlredir = (char *) malloc( sizeof(char)*MAX_URL );
+        if (urlredir == NULL) {
+            debugs(0, "FATAL unable to allocate memory in generate_response_page()\n");
+            return;
+        }
         snprintf(urlredir, MAX_URL, "%s?url=%s&source=%s&user=%s&virus=%s&recover=%s"
                  , redirect_url
 		 , data->url
@@ -2268,14 +2312,30 @@ int fmt_malware(ci_request_t *req, char *buf, int len, const char *param)
 {
    av_req_data_t *data = ci_service_data(req);
    char *malware = data->malware;
+   size_t cap, want;
 
-   len = strlen(malware);
+   if (buf == NULL || len <= 0)
+       return 0;
+   cap = (size_t) len;            /* capacity of buf provided by the caller */
+
+   if (malware == NULL) {
+       buf[0] = '\0';
+       return 0;
+   }
+
+   /* Do not mutate data->malware: it is released later. */
    if (strncmp("stream: ", malware, strlen("stream: ")) == 0)
        malware += 8;
 
-   memset(buf, '\0', len);
-   len = len - strlen(" FOUND") + 1;
-   xstrncpy(buf, malware, len);
+   /* Strip a trailing " FOUND" if present, guarding against underflow. */
+   want = strlen(malware);
+   if (want >= strlen(" FOUND"))
+       want -= strlen(" FOUND");
+   if (want >= cap)               /* leave room for the NUL */
+       want = cap - 1;
+
+   memset(buf, '\0', cap);
+   xstrncpy(buf, malware, want + 1);
 
    return strlen(buf);
 }
@@ -2284,17 +2344,27 @@ void generate_template_page(ci_request_t *req, av_req_data_t *data)
 {
     char buf[LOG_URL_SIZE];
     char *malware;
-    int len = strlen(data->malware);
+    char *src = data->malware;
+    size_t len;
 
-    if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
-       data->malware += 8;
+    /* Work on a local pointer; data->malware is released later. */
+    if (strncmp("stream: ", src, strlen("stream: ")) == 0)
+       src += 8;
 
-    debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, data->malware);
+    debugs(0, "LOG Virus found in %s ending download [%s]\n", data->url, src);
 
-    len = len - strlen(" FOUND") + 1;
-    malware = (char *) malloc (sizeof (char) * len);
-    memset(malware, 0, sizeof (char) * len);
-    xstrncpy(malware, data->malware, len);
+    /* Strip a trailing " FOUND", guarding against underflow. */
+    len = strlen(src);
+    if (len >= strlen(" FOUND"))
+        len -= strlen(" FOUND");
+
+    malware = (char *) malloc (sizeof (char) * (len + 1));
+    if (malware == NULL) {
+        debugs(0, "FATAL unable to allocate memory in generate_template_page()\n");
+        return;
+    }
+    memset(malware, 0, sizeof (char) * (len + 1));
+    xstrncpy(malware, src, len + 1);
 
     if ( ci_http_response_headers(req))
 	ci_http_response_reset_headers(req);
@@ -2364,15 +2434,25 @@ void generate_redirect_page(char * redirect, ci_request_t * req, av_req_data_t *
     char buf[MAX_URL];
     ci_membuf_t *error_page;
     char *malware;
-    int len = strlen(data->malware);
+    char *src = data->malware;
+    size_t len;
 
-    if (strncmp("stream: ", data->malware, strlen("stream: ")) == 0)
-       data->malware += 8;
+    /* Work on a local pointer; data->malware is released later. */
+    if (strncmp("stream: ", src, strlen("stream: ")) == 0)
+       src += 8;
 
-    len  = len - strlen(" FOUND") + 1;
-    malware = (char *) malloc (sizeof (char) * len);
-    memset(malware, 0, sizeof (char) * len);
-    xstrncpy(malware, data->malware, len);
+    /* Strip a trailing " FOUND", guarding against underflow. */
+    len = strlen(src);
+    if (len >= strlen(" FOUND"))
+        len -= strlen(" FOUND");
+
+    malware = (char *) malloc (sizeof (char) * (len + 1));
+    if (malware == NULL) {
+        debugs(0, "FATAL unable to allocate memory in generate_redirect_page()\n");
+        return;
+    }
+    memset(malware, 0, sizeof (char) * (len + 1));
+    xstrncpy(malware, src, len + 1);
 
     new_size = strlen(blocked_header_message) + strlen(redirect) + strlen(blocked_footer_message) + 10;
 
@@ -2593,9 +2673,12 @@ int connectINET(char *serverHost, uint16_t serverPort)
 char * replace(const char *s, const char *old, const char *new)
 {
     char *ret;
-    int i, count = 0;
+    size_t i, count = 0;
     size_t newlen = strlen(new);
     size_t oldlen = strlen(old);
+
+    if (oldlen == 0)
+        return strdup(s);
 
     for (i = 0; s[i] != '\0'; i++) {
         if (strstr(&s[i], old) == &s[i]) {
@@ -2603,12 +2686,15 @@ char * replace(const char *s, const char *old, const char *new)
             i += oldlen - 1;
         }
     }
-    ret = malloc(i + 1 + count * (newlen - oldlen));
+
+    /* Compute the new length with signed-safe arithmetic so a shorter
+       replacement (newlen < oldlen) cannot underflow the allocation size. */
+    ret = malloc(strlen(s) + 1 + count * newlen - count * oldlen);
     if (ret != NULL) {
         i = 0;
         while (*s) {
             if (strstr(s, old) == s) {
-                strcpy(&ret[i], new);
+                memcpy(&ret[i], new, newlen);
                 i += newlen;
                 s += oldlen;
             } else {
