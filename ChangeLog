@@ -1,3 +1,35 @@
+2026-06-29 version 7.5
+
+This version fixes some bugs reported by users since previous release
+and especially multipart/form-data upload that was not scanned.
+
+Full list of changes:
+
+  - Add documentation FAQ about FTP uploads (STOR/put) hang with Squid native
+    FTP proxy (ftp_port)
+  - Add CI workflow file for regression tests.
+  - Add test for PUT uploads that must be passed to squidclamav in REQMOD
+    exactly like POST.
+  - Multipart re-encoding. When the HTTP body is a multipart/form-data upload
+    we hand it to clamd wrapped as an e-mail so that libclamav decodes the
+    multipart and scans every embedded file. However libclamav reads e-mail
+    bodies line by line and STRIPS NUL bytes while doing so. A raw binary
+    part (an .exe, etc.) therefore reaches the scanner with all its NUL bytes
+    removed, no longer matches any signature and the virus is missed.
+    The fix rebuilds the multipart payload into a canonical MIME message
+    whose part bodies are base64-encoded (Content-Transfer-Encoding: base64).
+    base64 output is pure ASCII with no NUL bytes and is line-oriented, so it
+    survives libclamav's line reader untouched; libclamav then base64-decodes
+    each part back to the exact original bytes before scanning.
+    Caveats: The rebuild reads the whole body into memory (bounded to existing
+    maxsize/StreamMaxLength limits) and base64 adds ~37% size, so a multipart
+    upload near StreamMaxLength could now hit that ceiling slightly sooner.
+    Thanks to asterite3, ktran668959 and Yuri Voinov for the report.
+  - Use MEDIUM_BUFF instead of LOW_BUFF for all URIs storage.
+  - Fix configure prefix usage was missing in configure. Thanks to Lajos Gaspar
+    for the patch.
+  - Fix several memory allocation/free issues.
+
 2025-01-27 version 7.4
 
 This version adds compatibility with GCC v15.
