@@ -55,7 +55,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SQUIDCLAMAV 1"
-.TH SQUIDCLAMAV 1 2025-01-27 "perl v5.38.2" "User Contributed Perl Documentation"
+.TH SQUIDCLAMAV 1 2026-06-28 "perl v5.38.2" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -888,6 +888,45 @@ If you experience Squid "ICAP protocol error" (with bypass enabled) please
 consider increasing the following c\-icp parameters: StartServers, MaxServers,
 MinSpareThreads, MaxSpareThreads, ThreadsPerChild. Increasing MaxThreads parameter
 in clamd.conf may also help.
+.SH FAQ
+.IX Header "FAQ"
+.SS "FTP uploads (STOR/put) hang with Squid's native FTP proxy (ftp_port)"
+.IX Subsection "FTP uploads (STOR/put) hang with Squid's native FTP proxy (ftp_port)"
+When Squid is used as a native FTP proxy (\f(CW\*(C`ftp_port\*(C'\fR), directory listings and
+downloads work but uploads (FTP STOR) hang and time out on the client as soon
+as REQMOD adaptation is enabled. Commenting out the ICAP/adaptation directives
+makes uploads work again.
+.PP
+This is not a SquidClamav bug. Squid's native FTP relay does not forward the
+uploaded file as an HTTP request body: it presents every FTP command to the
+REQMOD service as a body-less \f(CW\*(C`GET ftp://host/\*(C'\fR request. SquidClamav therefore
+correctly answers "204 No modification" (there is nothing to scan), and Squid
+then deadlocks while coordinating the FTP data channel with the REQMOD
+transaction. The upload bytes never reach SquidClamav. The same hang has been
+reported with a plain pass-through ICAP service, which confirms the problem
+originates in Squid, not in the adaptation service.
+.PP
+Workaround: skip REQMOD for the FTP protocol while keeping RESPMOD, so FTP
+downloads are still scanned:
+.PP
+.Vb 4
+\&    acl ftp_proto proto FTP
+\&    adaptation_access service_req deny ftp_proto
+\&    adaptation_access service_req allow all
+\&    adaptation_access service_resp allow all
+.Ve
+.PP
+With this configuration:
+.PP
+.Vb 3
+\&    HTTP uploads (POST/PUT) : scanned (REQMOD) \- unaffected
+\&    FTP downloads (RETR)    : scanned (RESPMOD)
+\&    FTP uploads (STOR)      : not scanned, but no longer hang
+.Ve
+.PP
+Scanning native-FTP uploads requires a fix in Squid's FTP relay so that the
+STOR body is forwarded to REQMOD; there is nothing SquidClamav can do from the
+ICAP side until then.
 .SH BUGS
 .IX Header "BUGS"
 Please report any bugs, patches, discussion, etc. to <gilles AT darold DOT net>.
@@ -916,7 +955,7 @@ to build a useful and reliable product. They are all cited in ChangeLog
 file.
 .SH LICENSE
 .IX Header "LICENSE"
-Copyright (c) 2005\-2025 Gilles Darold \- All rights reserved.
+Copyright (c) 2005\-2026 Gilles Darold \- All rights reserved.
 .PP
 Some code is Copyright (C) 2004\-2008 Christos Tsantilas
 .PP

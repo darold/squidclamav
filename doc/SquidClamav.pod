@@ -761,6 +761,42 @@ consider increasing the following c-icp parameters: StartServers, MaxServers,
 MinSpareThreads, MaxSpareThreads, ThreadsPerChild. Increasing MaxThreads parameter
 in clamd.conf may also help.
 
+=head1 FAQ
+
+=head2 FTP uploads (STOR/put) hang with Squid's native FTP proxy (ftp_port)
+
+When Squid is used as a native FTP proxy (C<ftp_port>), directory listings and
+downloads work but uploads (FTP STOR) hang and time out on the client as soon
+as REQMOD adaptation is enabled. Commenting out the ICAP/adaptation directives
+makes uploads work again.
+
+This is not a SquidClamav bug. Squid's native FTP relay does not forward the
+uploaded file as an HTTP request body: it presents every FTP command to the
+REQMOD service as a body-less C<GET ftp://host/> request. SquidClamav therefore
+correctly answers "204 No modification" (there is nothing to scan), and Squid
+then deadlocks while coordinating the FTP data channel with the REQMOD
+transaction. The upload bytes never reach SquidClamav. The same hang has been
+reported with a plain pass-through ICAP service, which confirms the problem
+originates in Squid, not in the adaptation service.
+
+Workaround: skip REQMOD for the FTP protocol while keeping RESPMOD, so FTP
+downloads are still scanned:
+
+    acl ftp_proto proto FTP
+    adaptation_access service_req deny ftp_proto
+    adaptation_access service_req allow all
+    adaptation_access service_resp allow all
+
+With this configuration:
+
+    HTTP uploads (POST/PUT) : scanned (REQMOD) - unaffected
+    FTP downloads (RETR)    : scanned (RESPMOD)
+    FTP uploads (STOR)      : not scanned, but no longer hang
+
+Scanning native-FTP uploads requires a fix in Squid's FTP relay so that the
+STOR body is forwarded to REQMOD; there is nothing SquidClamav can do from the
+ICAP side until then.
+
 =head1 BUGS
 
 Please report any bugs, patches, discussion, etc. to <gilles AT darold DOT net>.
