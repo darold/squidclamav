@@ -308,6 +308,12 @@ jobs:
                   n = int(self.headers.get("Content-Length", "0") or 0)
                   if n: self.rfile.read(n)
                   self._send(b"UPLOAD_OK\n", "text/plain")
+              def do_PUT(self):
+                  # Issue #67: PUT uploads must be passed to squidclamav in REQMOD
+                  # exactly like POST. Drain the (already-scanned) body and 201.
+                  n = int(self.headers.get("Content-Length", "0") or 0)
+                  if n: self.rfile.read(n)
+                  self._send(b"PUT_OK\n", "text/plain", code=201)
           class S(socketserver.ThreadingMixIn, http.server.HTTPServer):
               allow_reuse_address = True
           S(("127.0.0.1", int(os.environ["ORIGIN_PORT"])), H).serve_forever()
@@ -364,7 +370,7 @@ jobs:
             if [ "$expect" = blocked ]; then
               { [ "$code" = 307 ] || [ "$code" = 403 ]; } && [ "$virus" = yes ] && [ "$infect" = yes ] || ok=0
             else
-              [ "$code" = 200 ] && [ "$virus" = no ] && [ "$infect" = no ] || ok=0
+              { [ "$code" = 200 ] || [ "$code" = 201 ]; } && [ "$virus" = no ] && [ "$infect" = no ] || ok=0
             fi
             if [ "$ok" = 1 ]; then
               printf '  PASS  %-34s code=%-3s virus=%-3s infection_hdr=%s\n' "$desc" "$code" "$virus" "$infect"
@@ -385,6 +391,15 @@ jobs:
           # *** issue #58 regression guard: binary NUL-heavy file via multipart/form-data ***
           run_case "binary virus upload (mp) #58" blocked "$O/upload/binnul" -F "file=@$WORK/payloads/binnul.bin"
           run_case "binary virus upload (raw)" blocked "$O/upload/binraw" -H "Content-Type: application/octet-stream" --data-binary "@$WORK/payloads/binnul.bin"
+
+          # *** issue #67 regression guard: PUT uploads must be scanned in REQMOD ***
+          # squidclamav's scan decision is method-agnostic (only CONNECT/OPTIONS are
+          # excluded), so a PUT body must be scanned exactly like a POST body. curl -T
+          # issues a raw HTTP PUT with the file as the request body.
+          echo "=== Uploads via PUT (REQMOD) -- issue #67 ==="
+          run_case "clean upload (PUT raw)"    clean   "$O/put/clean"  -T "$WORK/payloads/clean.txt"
+          run_case "EICAR upload (PUT raw)"    blocked "$O/put/eicar"  -T "$WORK/payloads/eicar.com"
+          run_case "binary virus upload (PUT)" blocked "$O/put/binnul" -T "$WORK/payloads/binnul.bin"
 
           echo "=== End-user view of a blocked download ==="
           curl --max-time 20 -s -D - -o /dev/null -x "$PROXY" "$O/dl/eicar" 2>/dev/null \
